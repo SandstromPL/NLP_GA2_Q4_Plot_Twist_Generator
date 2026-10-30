@@ -143,11 +143,11 @@ def analyze(out_dir, sample_metrics=None):
     return tables
 
 
-def summary_for_latex(tables):
+def summary_for_latex(tables, labels=None):
     by = tables["by_system"]
     rows = []
     for system in by.index:
-        rows.append({"System": system, **{c.capitalize(): f"{by.loc[system, ('mean', c)]:.2f} $\\pm$ "
+        rows.append({"System": (labels or {}).get(system, system), **{c.capitalize(): f"{by.loc[system, ('mean', c)]:.2f} $\\pm$ "
                                                        f"{by.loc[system, ('std', c)]:.2f}" for c in CRITERIA}})
     return pd.DataFrame(rows)
 

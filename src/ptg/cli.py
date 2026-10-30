@@ -5,8 +5,10 @@ human-sheet, human-analyze, report-assets.  `all` runs everything except human-a
 """
 import argparse
 import os
+import shutil
 import sys
 import time
+from pathlib import Path
 
 import pandas as pd
 import yaml
@@ -217,7 +219,7 @@ def stage_human_analyze(cfg, log, args):
 
     samples = pd.read_csv(out_path(cfg, "tables", "sample_metrics.csv"))
     tables = analyze(out_path(cfg, "human_eval", "x").parent, samples)
-    summary_for_latex(tables).to_latex(out_path(cfg, "tables", "human_eval.tex"), index=False, escape=False)
+    summary_for_latex(tables, MODEL_LABEL).to_latex(out_path(cfg, "tables", "human_eval.tex"), index=False, escape=False)
     tables["agreement"].to_latex(out_path(cfg, "tables", "human_agreement.tex"), index=False, float_format="%.2f")
     log(f"human eval overall means: {overall_mean(tables)}")
     log(f"agreement: {tables['agreement'].to_dict('records')}")
@@ -228,7 +230,14 @@ def stage_report_assets(cfg, log, args):
 
     make_figures(cfg)
     make_tables(cfg)
-    log("figures + LaTeX tables written")
+    # Mirror into report/ so the folder can be uploaded to Overleaf as-is.
+    for kind, pattern in (("figures", "*.png"), ("tables", "*.tex")):
+        dest = Path("report", kind)
+        dest.mkdir(parents=True, exist_ok=True)
+        for src in out_path(cfg, kind, "x").parent.glob(pattern):
+            shutil.copy2(src, dest / src.name)
+    shutil.copy2(out_path(cfg, "examples", "input_target_pairs.txt"), Path("report", "tables", "input_target_pairs.txt"))
+    log("figures + LaTeX tables written (and copied to report/)")
 
 
 STAGES = {"prepare": stage_prepare, "train": stage_train, "evaluate": stage_evaluate, "generate": stage_generate,

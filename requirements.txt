@@ -1,0 +1,17 @@
+# Versions used for the reported results (torch built for CUDA 12.6).
+# On Colab, install with:  pip install -r requirements.txt  (Colab's preinstalled torch also works)
+torch==2.14.1
+datasets==5.1.0
+numpy==2.5.4
+pandas==3.1.0
+matplotlib==3.11.2
+scipy==1.18.1
+krippendorff==0.9.0
+pyyaml==6.0.3
+jinja2==3.1.6
+transformers==5.22.1      # optional LLM baseline only
+accelerate==1.15.0        # optional LLM baseline only
+huggingface_hub==2.4.0
+nbformat==5.11.1
+nbconvert==7.17.2
+ipykernel==7.4.0

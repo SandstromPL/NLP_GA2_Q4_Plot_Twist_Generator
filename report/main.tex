@@ -1,0 +1,246 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{verbatim}
+\usepackage[most]{tcolorbox}
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black, citecolor=blue!50!black}
+\graphicspath{{figures/}}
+\setlist{nosep}
+
+% Model-generated text is always shown in this box, verbatim and unedited.
+\newtcolorbox{modelout}[1]{colback=gray!6, colframe=gray!45, boxrule=0.4pt, arc=1pt, left=4pt, right=4pt,
+  top=2pt, bottom=2pt, fonttitle=\footnotesize\bfseries, coltitle=black, colbacktitle=gray!18,
+  title={MODEL OUTPUT (unedited) --- #1}}
+\newcommand{\human}[1]{\textit{#1}}
+
+\title{\textbf{The Plot-Twist Generator}\\[2pt]
+\large Can a small neural language model write an interesting story?\\
+\normalsize NLP Group Assignment 2 --- Question 4}
+\author{TEAM MEMBER NAMES AND IDS}
+\date{30 October 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We train a Vanilla RNN and an LSTM word-level language model from scratch on 20,000 TinyStories
+and use them to continue story openings under ten decoding configurations (greedy, temperature,
+top-$k$, top-$p$ and a repetition penalty). We evaluate perplexity, diversity (Distinct-1/2),
+repetition and length failures, and run a blinded human evaluation of plot-twist continuations.
+A zero-shot Qwen2.5-0.5B-Instruct serves as an optional reference. %RESULTS-ABSTRACT
+\end{abstract}
+
+\section{Introduction}
+The brief asks whether a small neural language model can write a story that is coherent,
+interesting and surprising, and whether the better language model (lower perplexity) is also the
+better storyteller. We answer with controlled experiments: two architectures that differ only in
+the recurrent cell, one shared vocabulary and training recipe, and the same prompts, decoding
+settings and seeds for every comparison. All generated text in this report is reproduced
+\emph{exactly} as produced (only detokenised from the saved tokens); model output always appears in
+grey ``MODEL OUTPUT'' boxes, and all other text is human commentary. Failed generations are
+reported alongside successful ones. Code, configuration, checkpoints and all raw generations are
+included in the submission (see the README for exact commands).
+
+\section{Data preparation and next-token prediction (Part 1)}
+\label{sec:data}
+\paragraph{Corpus and subset.} We stream the first 40,000 stories of the TinyStories
+\texttt{train} split (\texttt{roneneldan/TinyStories}) in their published order, clean them,
+drop stories shorter than 20 words, and remove exact duplicates (case- and whitespace-insensitive).
+The unique stories are shuffled with seed 42 and split \emph{at the story level} into 20,000
+training, 1,000 validation and 1,000 test stories. Only then are training sequences built, so no
+part of a story can appear in more than one split. The Hugging Face row index of every story is
+saved in \texttt{data/splits.json}; the dataset itself is not part of the submission.
+Table~\ref{tab:data} summarises the result.
+
+\paragraph{Cleaning.} Unicode NFKC normalisation; repair of mis-decoded UTF-8 sequences that occur
+in TinyStories (e.g.\ the three-character garbage left by a wrongly decoded apostrophe); curly quotes and dashes mapped to ASCII;
+remaining non-ASCII characters removed; whitespace collapsed.
+
+\paragraph{Tokenisation and vocabulary.} Both models share one word-level tokenizer. Text is
+lowercased and split by a regular expression into words, clitics (\texttt{'s}, \texttt{'t},
+\texttt{'ll}, \dots), numbers and individual punctuation marks. The vocabulary is built from the
+\emph{training split only}: every token seen at least 3 times is kept. Rarer tokens map to
+\texttt{<unk>}. Four special tokens are added: \texttt{<pad>} (id 0), \texttt{<unk>},
+\texttt{<bos>} and \texttt{<eos>}.
+
+\paragraph{Sequences and input--target pairs.} Every story becomes one id sequence
+\texttt{<bos>} $w_1 \dots w_n$ \texttt{<eos>}. The model input is the sequence without its last id
+and the target is the sequence shifted left by one, so at every position $t$ the model predicts
+$w_{t+1}$ from $w_{\le t}$ (example in Appendix~\ref{app:pairs}). Stories longer than 512 tokens
+(Table~\ref{tab:data}) are cut into consecutive windows of the \emph{same} story, overlapping by one
+token so every target is predicted exactly once. Hidden states start from zero for every window.
+
+\paragraph{Why story boundaries must be preserved.} (i)~\emph{No leakage}: if overlapping windows
+of one story could fall into different splits, validation and test perplexity would measure
+memorisation rather than generalisation. Splitting whole stories, after removing duplicates,
+prevents this. (ii)~\emph{Correct conditioning}: if stories were joined into one stream, the
+model would learn to continue the end of story A with the start of an unrelated story B, and
+the hidden state would carry characters and events across the boundary. (iii)~\emph{Learning to
+stop}: only with an explicit \texttt{<eos>} at every story end can the model learn when a story is
+finished. Our premature-termination and runaway metrics (Part~5) depend on this.
+
+\paragraph{Padding.} Windows are grouped into batches of similar length (about 12k tokens per
+batch) and right-padded with \texttt{<pad>}. Padded target positions are excluded from the loss
+via \texttt{ignore\_index}. Because both models are causal (left to right), padding placed after
+the real tokens cannot influence any hidden state or prediction at a real position, so the loss
+equals the loss on the unpadded sequences. The pad embedding is fixed at zero
+(\texttt{padding\_idx}).
+
+\begin{table}[H]\centering\small
+\caption{Data statistics.}\label{tab:data}
+\input{tables/data_stats.tex}
+\end{table}
+
+\section{Models and training (Part 2)}
+\label{sec:models}
+\paragraph{Architectures.} Model A: \texttt{Embedding(V,256)} $\rightarrow$ 2-layer
+\texttt{nn.RNN} (tanh, hidden 512) $\rightarrow$ \texttt{Linear(512,V)}. Model B: identical, with
+\texttt{nn.LSTM} in place of \texttt{nn.RNN}. Dropout 0.3 is applied to the embeddings, between
+the recurrent layers and before the output layer. Both are trained with token-level cross-entropy.
+
+\paragraph{Identical training conditions.} Same data, vocabulary, batches (seed 42), embedding
+and hidden sizes, depth and dropout; AdamW (lr $10^{-3}$, weight decay 0.01); gradient-norm
+clipping at 1.0; ReduceLROnPlateau (factor 0.5) on validation loss; at most 15 epochs with early
+stopping (patience 2); the checkpoint with the lowest validation loss is kept. Mixed precision
+(bf16 autocast) on one NVIDIA RTX 3050 Ti Laptop GPU (4~GB).
+\emph{Unavoidable difference}: an LSTM layer has four gates and therefore four times the
+recurrent weights of a Vanilla RNN layer of the same width, so the LSTM has more parameters
+(Table~\ref{tab:models}). We kept the widths equal, as the brief asks, rather than matching
+parameter counts.
+
+\begin{table}[H]\centering\small
+\caption{Model size, training cost and perplexity (perplexity = exp of the mean token-level
+cross-entropy over all non-pad targets, \texttt{<eos>} included).}\label{tab:models}
+\input{tables/model_summary.tex}
+\end{table}
+
+\begin{figure}[H]\centering
+\includegraphics[width=\linewidth]{loss_curves.png}
+\caption{Training and validation loss per epoch, and validation perplexity.}\label{fig:loss}
+\end{figure}
+
+%RESULTS-PART2
+
+\section{Decoding strategies (Part 3)}
+\label{sec:decoding}
+For a prompt we encode \texttt{<bos>} + prompt, run it through the model, and then generate up to
+150 tokens one at a time, feeding back the hidden state, until \texttt{<eos>}. At every step,
+\texttt{<unk>}, \texttt{<pad>} and \texttt{<bos>} are masked out so they cannot be generated.
+Strategies:
+\begin{itemize}
+\item \textbf{Greedy}: $\arg\max_w p(w \mid \text{context})$ (deterministic, one sample).
+\item \textbf{Temperature sampling}: sample from $\mathrm{softmax}(z/T)$ with
+  $T \in \{0.5, 0.8, 1.0, 1.2\}$.
+\item \textbf{Top-$k$ sampling}: keep the $k$ most probable tokens ($k \in \{10, 40\}$, $T=1$),
+  renormalise and sample.
+\item Extra: \textbf{top-$p$} (nucleus, $p=0.9$) and a \textbf{repetition penalty} of 1.2
+  (CTRL-style, applied to every token already in the prompt or output), combined with greedy and
+  with top-$k$=40, as a mitigation experiment.
+\end{itemize}
+Each of the 10 prompts (5 for Part~3, 5 for Part~4) is continued by both models with every
+configuration and, for the 8 stochastic configurations, 5 seeds (0--4; sampling uses a seeded CPU
+generator). This gives 840 continuations in total. All of them are in
+\texttt{outputs/stories/}.
+
+\paragraph{Part 3 prompts} (themes required by the brief):
+\begin{itemize}
+\item \emph{Mystery}: ``The detective entered the abandoned house and noticed that every clock
+  had stopped at exactly midnight. Suddenly, the telephone rang\dots''
+\item \emph{Surprising discovery}: ``While digging in the garden, Ben found an old wooden box.
+  When he opened it, he could not believe his eyes.''
+\item \emph{Unusual character}: ``There once was a little cat who could talk, but she only spoke
+  when it was raining.''
+\item \emph{Problem to solve}: ``The bridge to the town broke in the storm, and the children could
+  not get to school. Lily had an idea.''
+\item \emph{Unexpected ending}: ``Max worked all day to build the biggest sand castle on the
+  beach. He was very proud of it, but when he came back the next morning,''
+\end{itemize}
+
+\paragraph{Automatic metrics} (computed on the continuation only, never the prompt).
+\emph{Word tokens} are alphabetic tokens and clitics; punctuation is excluded.
+\textbf{Distinct-$n$} = unique $n$-grams / total $n$-grams. It is reported \emph{pooled} over all
+samples of a configuration (n-grams never cross samples) and as a per-sample mean.
+\textbf{Repetition rate (Rep-4)} = $1 -$ Distinct-4 of one continuation, i.e.\ the share of its
+4-grams that repeat an earlier 4-gram. \textbf{Sentence repetition} = share of sentences that
+exactly repeat an earlier sentence of the same sample. \textbf{Length}: mean generated tokens;
+\textbf{premature} = \texttt{<eos>} within 20 tokens; \textbf{runaway} = 150 tokens reached
+without \texttt{<eos>}. \textbf{Prompt overlap} = share of the prompt's content words that
+reappear (a crude relevance proxy).
+
+%RESULTS-PART3
+
+\section{The Plot-Twist Challenge (Part 4)}
+\label{sec:twist}
+The five openings follow the brief: an examination paper that already contains tomorrow's
+answers; an old robot receiving a message from its future version; a detective who solves a murder
+before it happens; a village that cannot remember the previous day; and a letter from 100 years
+in the future (exact wording in \texttt{src/ptg/prompts.py}). Each was continued by both models
+with all ten configurations and five seeds. We analyse greedy, temperature 0.8 and top-$k$=40 in
+detail, against the four criteria of the brief: (1)~connection to the prompt, (2)~a meaningful
+development or twist, (3)~consistency with earlier details, and (4)~no excessive repetition or
+meaningless jumps.
+
+%RESULTS-PART4
+
+\section{Is the better language model also the better storyteller? (Part 5)}
+\label{sec:eval}
+\subsection{Quantitative evaluation}
+%RESULTS-PART5-QUANT
+
+\subsection{Blinded human evaluation}
+\paragraph{Design.} The sample set was fixed in the configuration file before any output was read:
+every Plot-Twist opening $\times$ \{Vanilla RNN, LSTM, Qwen\} $\times$ \{temperature 0.8,
+top-$k$=40\}, seed 0, i.e.\ 25 samples (the LLM contributes top-$k$=40 only). To prevent the surface
+form from revealing the system, every system's output passes through the same word tokenizer,
+lowercasing, detokeniser and 150-token cap. Samples were shuffled (seed 2026), given anonymous IDs,
+and shown with the opening on an HTML sheet. The key was kept in a separate file. Each evaluator
+independently rated every sample from 1 to 5 for coherence, grammatical quality, relevance to the
+opening, and creativity/surprise. Agreement is measured with Krippendorff's $\alpha$ (ordinal).
+LSTM and RNN are compared with a paired Wilcoxon signed-rank test over the 10 (opening, config)
+pairs, using the mean over evaluators.
+
+%RESULTS-PART5-HUMAN
+
+\section{Optional extension: a zero-shot open-source LLM}
+\label{sec:llm}
+\textbf{Checkpoint}: \texttt{Qwen/Qwen2.5-0.5B-Instruct} (revision recorded in
+\texttt{outputs/generations/llm\_settings.json}), \textbf{fp16}, same GPU, \textbf{not fine-tuned}.
+\textbf{Prompt template} (chat format via the tokenizer's chat template): system ``You are a
+storyteller who writes short, simple stories for children.''; user ``Continue this story. Write the
+next part in simple English (about 120 words). Write only the continuation. Story opening:
+\{opening\}''. \textbf{Decoding}: greedy and top-$k$=40 ($T$=1, top-$p$=1, repetition penalty 1.0,
+set explicitly to override the checkpoint's own defaults), 5 seeds, at most 220 subword tokens.
+The output is then re-tokenised with our word tokenizer and cut to 150 tokens, like the RNN and
+LSTM. Perplexity is not compared, because the tokenizers differ.
+
+%RESULTS-LLM
+
+\section{Final analysis (Part 6)}
+\label{sec:analysis}
+%RESULTS-PART6
+
+\section{Reproducibility}
+All hyper-parameters are in \texttt{configs/default.yaml}. Seeds: 42 (split, initialisation,
+batching) and 0--4 (generation). The resolved configuration, command-line arguments and hardware
+of every run are saved in \texttt{outputs/configs\_used/}. A timestamped log is in
+\texttt{outputs/run\_log.txt}. The command \texttt{python -m ptg.cli all} reproduces every number
+and figure. cuDNN RNN kernels are not bit-for-bit deterministic, so retraining may change the last
+decimals. The submitted checkpoints reproduce the reported numbers.
+
+\appendix
+\section{Next-token training pairs}\label{app:pairs}
+\begin{small}
+\verbatiminput{tables/input_target_pairs.txt}
+\end{small}
+
+\end{document}
