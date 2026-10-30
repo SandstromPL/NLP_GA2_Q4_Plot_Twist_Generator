@@ -1,0 +1,82 @@
+[2026-10-30 13:59:29] === stage: prepare ===
+[2026-10-30 13:59:44] splits: {'streamed': 40000, 'dropped_short': 12, 'dropped_duplicates': 50, 'unique_clean': 39938, 'n_train': 20000, 'n_val': 1000, 'n_test': 1000}
+[2026-10-30 13:59:46] vocab: {'train_types': 10971, 'train_tokens': 4221472, 'vocab_size': 7590, 'min_freq': 3, 'train_tokens_covered': 0.9989591308434593, 'unk_rate_train': 0.001040869156540657, 'unk_rate_val': 0.0020016886283215226, 'unk_rate_test': 0.002201296318943378}
+[2026-10-30 13:59:48] sequences: {'train': {'stories': 20000, 'windows': 20531, 'target_tokens': 4241472, 'stories_split_into_windows': 531, 'pct_split': 2.655, 'story_length_tokens': {'mean': 213.0736, 'median': 182.0, 'p95': 441.0, 'max': 1025, 'min': 58}}, 'val': {'stories': 1000, 'windows': 1029, 'target_tokens': 211822, 'stories_split_into_windows': 29, 'pct_split': 2.9, 'story_length_tokens': {'mean': 212.822, 'median': 180.5, 'p95': 460.0, 'max': 992, 'min': 77}}, 'test': {'stories': 1000, 'windows': 1029, 'target_tokens': 213602, 'stories_split_into_windows': 29, 'pct_split': 2.9, 'story_length_tokens': {'mean': 214.602, 'median': 182.0, 'p95': 446.04999999999995, 'max': 985, 'min': 62}}}
+[2026-10-30 13:59:48] === stage: train ===
+[2026-10-30 13:59:50] training rnn on cuda (364 batches/epoch)
+[2026-10-30 13:59:50] [rnn] parameters: {'embedding': 1943040, 'recurrent': 919552, 'output': 3893670, 'total': 6756262}
+[2026-10-30 14:00:14] [rnn] epoch  1 train_loss 4.3292 val_loss 3.5140 val_ppl 33.58 grad_norm 0.68 lr 1.00e-03 (22s)
+[2026-10-30 14:00:35] [rnn] epoch  2 train_loss 3.5048 val_loss 3.2368 val_ppl 25.45 grad_norm 0.53 lr 1.00e-03 (21s)
+[2026-10-30 14:00:57] [rnn] epoch  3 train_loss 3.3104 val_loss 3.0802 val_ppl 21.76 grad_norm 0.51 lr 1.00e-03 (21s)
+[2026-10-30 14:01:18] [rnn] epoch  4 train_loss 3.2052 val_loss 3.0404 val_ppl 20.91 grad_norm 0.50 lr 1.00e-03 (21s)
+[2026-10-30 14:01:40] [rnn] epoch  5 train_loss 3.1373 val_loss 2.9782 val_ppl 19.65 grad_norm 0.49 lr 1.00e-03 (22s)
+[2026-10-30 14:02:02] [rnn] epoch  6 train_loss 3.0860 val_loss 2.9206 val_ppl 18.55 grad_norm 0.49 lr 1.00e-03 (22s)
+[2026-10-30 14:02:23] [rnn] epoch  7 train_loss 3.0521 val_loss 2.9253 val_ppl 18.64 grad_norm 0.48 lr 5.00e-04 (22s)
+[2026-10-30 14:02:45] [rnn] epoch  8 train_loss 2.9849 val_loss 2.8465 val_ppl 17.23 grad_norm 0.54 lr 5.00e-04 (22s)
+[2026-10-30 14:03:06] [rnn] epoch  9 train_loss 2.9643 val_loss 2.8299 val_ppl 16.94 grad_norm 0.62 lr 5.00e-04 (22s)
+[2026-10-30 14:03:28] [rnn] epoch 10 train_loss 2.9529 val_loss 2.8314 val_ppl 16.97 grad_norm 0.52 lr 2.50e-04 (22s)
+[2026-10-30 14:03:50] [rnn] epoch 11 train_loss 2.9148 val_loss 2.7993 val_ppl 16.43 grad_norm 0.48 lr 2.50e-04 (22s)
+[2026-10-30 14:04:11] [rnn] epoch 12 train_loss 2.9028 val_loss 2.7894 val_ppl 16.27 grad_norm 0.51 lr 2.50e-04 (22s)
+[2026-10-30 14:04:33] [rnn] epoch 13 train_loss 2.8956 val_loss 2.7840 val_ppl 16.18 grad_norm 0.48 lr 2.50e-04 (22s)
+[2026-10-30 14:04:55] [rnn] epoch 14 train_loss 2.8880 val_loss 2.7782 val_ppl 16.09 grad_norm 0.54 lr 2.50e-04 (22s)
+[2026-10-30 14:05:17] [rnn] epoch 15 train_loss 2.8817 val_loss 2.7728 val_ppl 16.00 grad_norm 0.49 lr 2.50e-04 (22s)
+[2026-10-30 14:05:17] rnn: best val ppl 16.00 at epoch 15, 5.4 min
+[2026-10-30 14:05:17] training lstm on cuda (363 batches/epoch)
+[2026-10-30 14:05:17] [lstm] parameters: {'embedding': 1943040, 'recurrent': 3678208, 'output': 3893670, 'total': 9514918}
+[2026-10-30 14:05:47] [lstm] epoch  1 train_loss 5.4955 val_loss 4.6871 val_ppl 108.54 grad_norm 0.62 lr 1.00e-03 (30s)
+[2026-10-30 14:06:17] [lstm] epoch  2 train_loss 4.2671 val_loss 3.7544 val_ppl 42.71 grad_norm 0.40 lr 1.00e-03 (30s)
+[2026-10-30 14:06:47] [lstm] epoch  3 train_loss 3.6483 val_loss 3.3305 val_ppl 27.95 grad_norm 0.25 lr 1.00e-03 (30s)
+[2026-10-30 14:07:17] [lstm] epoch  4 train_loss 3.3492 val_loss 3.1162 val_ppl 22.56 grad_norm 0.21 lr 1.00e-03 (30s)
+[2026-10-30 14:07:48] [lstm] epoch  5 train_loss 3.1735 val_loss 2.9798 val_ppl 19.68 grad_norm 0.19 lr 1.00e-03 (30s)
+[2026-10-30 14:08:18] [lstm] epoch  6 train_loss 3.0506 val_loss 2.8740 val_ppl 17.71 grad_norm 0.18 lr 1.00e-03 (30s)
+[2026-10-30 14:08:48] [lstm] epoch  7 train_loss 2.9574 val_loss 2.7930 val_ppl 16.33 grad_norm 0.18 lr 1.00e-03 (30s)
+[2026-10-30 14:09:18] [lstm] epoch  8 train_loss 2.8822 val_loss 2.7320 val_ppl 15.36 grad_norm 0.18 lr 1.00e-03 (30s)
+[2026-10-30 14:09:48] [lstm] epoch  9 train_loss 2.8199 val_loss 2.6793 val_ppl 14.58 grad_norm 0.18 lr 1.00e-03 (30s)
+[2026-10-30 14:10:19] [lstm] epoch 10 train_loss 2.7681 val_loss 2.6390 val_ppl 14.00 grad_norm 0.18 lr 1.00e-03 (30s)
+[2026-10-30 14:10:49] [lstm] epoch 11 train_loss 2.7218 val_loss 2.5973 val_ppl 13.43 grad_norm 0.17 lr 1.00e-03 (30s)
+[2026-10-30 14:11:19] [lstm] epoch 12 train_loss 2.6820 val_loss 2.5638 val_ppl 12.98 grad_norm 0.17 lr 1.00e-03 (30s)
+[2026-10-30 14:11:49] [lstm] epoch 13 train_loss 2.6454 val_loss 2.5360 val_ppl 12.63 grad_norm 0.17 lr 1.00e-03 (30s)
+[2026-10-30 14:12:19] [lstm] epoch 14 train_loss 2.6122 val_loss 2.5109 val_ppl 12.32 grad_norm 0.17 lr 1.00e-03 (30s)
+[2026-10-30 14:12:49] [lstm] epoch 15 train_loss 2.5816 val_loss 2.4843 val_ppl 11.99 grad_norm 0.17 lr 1.00e-03 (30s)
+[2026-10-30 14:12:50] lstm: best val ppl 11.99 at epoch 15, 7.5 min
+[2026-10-30 14:12:50] === stage: evaluate ===
+[2026-10-30 14:12:52] rnn: val ppl 16.00  test ppl 15.77
+[2026-10-30 14:12:53] lstm: val ppl 11.99  test ppl 11.81
+[2026-10-30 14:12:53] === stage: generate ===
+[2026-10-30 14:13:17] generated 420 continuations for rnn
+[2026-10-30 14:13:47] generated 420 continuations for lstm
+[2026-10-30 14:13:47] saved 840 generations to outputs/generations/generations.jsonl
+[2026-10-30 14:13:47] === stage: llm ===
+[2026-10-30 14:13:53] LLM done: P4_exam
+[2026-10-30 14:14:01] LLM done: P4_robot
+[2026-10-30 14:14:04] LLM done: P4_detective
+[2026-10-30 14:14:14] LLM done: P4_village
+[2026-10-30 14:14:18] LLM done: P4_letter
+[2026-10-30 14:14:18] saved 30 LLM generations
+[2026-10-30 14:14:18] === stage: metrics ===
+[2026-10-30 14:14:18] metrics + story files written
+[2026-10-30 14:14:18] === stage: human-sheet ===
+[2026-10-30 14:14:18] human-eval sheet: 25 samples {'rnn': 10, 'lstm': 10, 'llm': 5}
+[2026-10-30 14:14:18] === stage: report-assets ===
+[2026-10-30 14:14:52] === stage: metrics ===
+[2026-10-30 14:14:53] metrics + story files written
+[2026-10-30 14:14:56] === stage: report-assets ===
+[2026-10-30 14:14:57] figures + LaTeX tables written (and copied to report/)
+[2026-10-30 14:16:01] === stage: length-test ===
+[2026-10-30 14:16:56] length test: 600 generations
+[2026-10-30 14:16:56] length test summary:
+                   n  gen_len_mean  gen_len_median  true_len_mean  true_len_median  premature_pct  no_eos_pct  too_long_pct
+system config                                                                                                              
+rnn    greedy    100         460.7           600.0          215.1            176.0            0.0        73.0          73.0
+       temp_0.8  100         173.9           110.0          215.1            176.0            0.0         0.0          16.0
+       topk_40   100         162.1           167.0          215.1            176.0            0.0         0.0           3.0
+lstm   greedy    100         295.0           196.0          215.1            176.0            0.0        28.0          33.0
+       temp_0.8  100         191.6           145.0          215.1            176.0            0.0         0.0           3.0
+       topk_40   100         210.1           167.0          215.1            176.0            0.0         0.0           5.0
+[2026-10-30 14:17:20] === stage: report-assets ===
+[2026-10-30 14:17:22] figures + LaTeX tables written (and copied to report/)
+[2026-10-30 14:17:25] === stage: evaluate ===
+[2026-10-30 14:17:27] rnn: val ppl 16.00  test ppl 15.77
+[2026-10-30 14:17:29] lstm: val ppl 11.99  test ppl 11.81
+[2026-10-30 14:17:54] === stage: report-assets ===
+[2026-10-30 14:17:56] figures + LaTeX tables written (and copied to report/)

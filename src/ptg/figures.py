@@ -69,7 +69,7 @@ def make_figures(cfg):
                 ys.append(np.nansum(loss[sl] * cnt[sl]) / cnt[sl].sum())
         ax.plot(xs, ys, "-o", ms=3, color=COLORS[c], label=LABELS[c])
     ax.set(xlabel="token position in story", ylabel="mean test loss",
-           title="Loss vs. position (more context ->?)")
+           title="Test loss by token position (bins of 16)")
     ax.legend()
     ax.grid(alpha=0.3)
     _save(fig, cfg, "loss_by_position.png")
@@ -137,6 +137,38 @@ def make_tables(cfg):
         df["config"] = df["config"].str.replace("_", r"\_", regex=False)
         df[list(cols)].rename(columns=cols).to_latex(out_path(cfg, "tables", f"{name}.tex"), index=False,
                                                      float_format="%.2f", escape=False)
+
+    fail_cols = {"system": "System", "config": "Config", "loop_pct": "Loop\\%", "runaway_pct": "Runaway\\%",
+                 "premature_pct": "Premature\\%", "off_prompt_pct": "Off-prompt\\%",
+                 "stock_character_pct": "Stock char.\\%"}
+    df = pd.read_csv(out_path(cfg, "tables", "decoding_metrics.csv"))
+    df["system"] = df["system"].map(LABELS)
+    df["config"] = df["config"].str.replace("_", r"\_", regex=False)
+    df[list(fail_cols)].rename(columns=fail_cols).to_latex(out_path(cfg, "tables", "failure_rates.tex"), index=False,
+                                                           float_format="%.0f", escape=False)
+
+    lt = pd.read_csv(out_path(cfg, "tables", "length_test.csv"))
+    lt["system"] = lt["system"].map(LABELS)
+    lt["config"] = lt["config"].str.replace("_", r"\_", regex=False)
+    lt = lt.rename(columns={"system": "System", "config": "Config", "gen_len_mean": "Gen. mean",
+                            "gen_len_median": "Gen. median", "true_len_median": "Real median",
+                            "premature_pct": "Premature\\%", "no_eos_pct": "No \\texttt{<eos>}\\%",
+                            "too_long_pct": "Too long\\%"})
+    lt[["System", "Config", "Gen. mean", "Gen. median", "Real median", "Premature\\%", "No \\texttt{<eos>}\\%",
+        "Too long\\%"]].to_latex(out_path(cfg, "tables", "length_test.tex"), index=False, float_format="%.0f",
+                                  escape=False)
+
+    ps = pd.read_csv(out_path(cfg, "tables", "prompt_sensitivity.csv"))
+    ps = ps[ps.system.isin(["rnn", "lstm"]) & ~ps.config.str.startswith("greedy")]
+    ps["system"] = ps["system"].map(LABELS)
+    ps["config"] = ps["config"].str.replace("_", r"\_", regex=False)
+    ps = ps.rename(columns={"system": "System", "config": "Config",
+                            "cross_prompt_jaccard4": "4-gram Jaccard: diff. prompt, same seed",
+                            "cross_seed_jaccard4": "same prompt, diff. seed",
+                            "cross_prompt_same_prefix_pct": "Same first 10 tokens\\% (diff. prompt)"})
+    ps[["System", "Config", "4-gram Jaccard: diff. prompt, same seed", "same prompt, diff. seed",
+        "Same first 10 tokens\\% (diff. prompt)"]].to_latex(out_path(cfg, "tables", "prompt_sensitivity.tex"),
+                                                             index=False, float_format="%.3f", escape=False)
 
     stats = load_json(out_path(cfg, "data_stats.json"))
     v, sp = stats["vocab"], stats["splits"]

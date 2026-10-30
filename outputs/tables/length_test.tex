@@ -1,0 +1,12 @@
+\begin{tabular}{llrrrrrr}
+\toprule
+System & Config & Gen. mean & Gen. median & Real median & Premature\% & No \texttt{<eos>}\% & Too long\% \\
+\midrule
+Vanilla RNN & greedy & 461 & 600 & 176 & 0 & 73 & 73 \\
+Vanilla RNN & temp\_0.8 & 174 & 110 & 176 & 0 & 0 & 16 \\
+Vanilla RNN & topk\_40 & 162 & 167 & 176 & 0 & 0 & 3 \\
+LSTM & greedy & 295 & 196 & 176 & 0 & 28 & 33 \\
+LSTM & temp\_0.8 & 192 & 145 & 176 & 0 & 0 & 3 \\
+LSTM & topk\_40 & 210 & 167 & 176 & 0 & 0 & 5 \\
+\bottomrule
+\end{tabular}

@@ -1,0 +1,43 @@
+{
+  "cell": "rnn",
+  "parameters": {
+    "embedding": 1943040,
+    "recurrent": 919552,
+    "output": 3893670,
+    "total": 6756262
+  },
+  "train_seconds": 324.2130243778229,
+  "epochs_run": 15,
+  "best_epoch": 15,
+  "best_val_loss": 2.7727787068859704,
+  "best_val_ppl": 16.00304004311064,
+  "amp_dtype": "torch.bfloat16",
+  "finished": "2026-10-30 14:05:17",
+  "hardware": {
+    "python": "3.12.3",
+    "torch": "2.14.1+cu126",
+    "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+    "cpu_count": 20,
+    "device": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+    "gpu_memory_gb": 3.68,
+    "cuda": "12.6",
+    "cudnn": 91002
+  },
+  "train_cfg": {
+    "epochs": 15,
+    "patience": 2,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "lr_decay": 0.5,
+    "amp": true,
+    "log_every": 50
+  },
+  "model_cfg": {
+    "emb_dim": 256,
+    "hidden_dim": 512,
+    "num_layers": 2,
+    "dropout": 0.3
+  },
+  "seed": 42
+}

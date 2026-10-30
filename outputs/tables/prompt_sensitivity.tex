@@ -1,0 +1,22 @@
+\begin{tabular}{llrrr}
+\toprule
+System & Config & 4-gram Jaccard: diff. prompt, same seed & same prompt, diff. seed & Same first 10 tokens\% (diff. prompt) \\
+\midrule
+Vanilla RNN & temp\_0.5 & 0.025 & 0.016 & 0.889 \\
+Vanilla RNN & temp\_0.8 & 0.034 & 0.004 & 4.444 \\
+Vanilla RNN & temp\_1.0 & 0.044 & 0.001 & 1.778 \\
+Vanilla RNN & temp\_1.2 & 0.084 & 0.000 & 2.667 \\
+Vanilla RNN & topk\_10 & 0.015 & 0.004 & 0.444 \\
+Vanilla RNN & topk\_40 & 0.022 & 0.001 & 0.000 \\
+Vanilla RNN & topp\_0.9 & 0.048 & 0.001 & 4.000 \\
+Vanilla RNN & topk\_40\_rep1.2 & 0.003 & 0.000 & 0.444 \\
+LSTM & temp\_0.5 & 0.012 & 0.018 & 0.444 \\
+LSTM & temp\_0.8 & 0.007 & 0.003 & 1.778 \\
+LSTM & temp\_1.0 & 0.016 & 0.001 & 5.333 \\
+LSTM & temp\_1.2 & 0.024 & 0.000 & 6.667 \\
+LSTM & topk\_10 & 0.004 & 0.003 & 0.889 \\
+LSTM & topk\_40 & 0.009 & 0.001 & 3.556 \\
+LSTM & topp\_0.9 & 0.009 & 0.002 & 5.333 \\
+LSTM & topk\_40\_rep1.2 & 0.006 & 0.001 & 2.667 \\
+\bottomrule
+\end{tabular}

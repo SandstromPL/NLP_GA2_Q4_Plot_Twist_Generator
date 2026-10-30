@@ -1,0 +1,28 @@
+\begin{tabular}{llrrrrr}
+\toprule
+System & Config & Loop\% & Runaway\% & Premature\% & Off-prompt\% & Stock char.\% \\
+\midrule
+Vanilla RNN & greedy & 60 & 50 & 0 & 100 & 0 \\
+Vanilla RNN & greedy\_rep1.2 & 0 & 0 & 10 & 100 & 80 \\
+Vanilla RNN & temp\_0.5 & 0 & 28 & 2 & 78 & 56 \\
+Vanilla RNN & temp\_0.8 & 0 & 36 & 2 & 66 & 68 \\
+Vanilla RNN & temp\_1.0 & 0 & 40 & 0 & 54 & 68 \\
+Vanilla RNN & temp\_1.2 & 0 & 38 & 0 & 70 & 84 \\
+Vanilla RNN & topk\_10 & 0 & 44 & 2 & 66 & 74 \\
+Vanilla RNN & topk\_40 & 0 & 56 & 0 & 54 & 82 \\
+Vanilla RNN & topp\_0.9 & 0 & 38 & 0 & 54 & 68 \\
+Vanilla RNN & topk\_40\_rep1.2 & 0 & 20 & 4 & 86 & 84 \\
+LSTM & greedy & 40 & 40 & 0 & 80 & 10 \\
+LSTM & greedy\_rep1.2 & 0 & 20 & 0 & 70 & 10 \\
+LSTM & temp\_0.5 & 0 & 26 & 0 & 56 & 12 \\
+LSTM & temp\_0.8 & 0 & 40 & 0 & 52 & 18 \\
+LSTM & temp\_1.0 & 0 & 52 & 0 & 46 & 46 \\
+LSTM & temp\_1.2 & 0 & 56 & 0 & 42 & 58 \\
+LSTM & topk\_10 & 0 & 50 & 0 & 54 & 20 \\
+LSTM & topk\_40 & 0 & 60 & 0 & 44 & 40 \\
+LSTM & topp\_0.9 & 0 & 42 & 0 & 42 & 30 \\
+LSTM & topk\_40\_rep1.2 & 0 & 42 & 0 & 52 & 50 \\
+Qwen2.5-0.5B & greedy & 20 & 20 & 0 & 0 & 20 \\
+Qwen2.5-0.5B & topk\_40 & 0 & 20 & 8 & 8 & 4 \\
+\bottomrule
+\end{tabular}

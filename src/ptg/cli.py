@@ -1,6 +1,6 @@
 """Pipeline entry point:  python -m ptg.cli <stage> [--config ...] [--set key=value ...]
 
-Stages (in order): prepare, train --model rnn|lstm, evaluate, generate, llm, metrics,
+Stages (in order): prepare, train --model rnn|lstm, evaluate, generate, length-test, llm, metrics,
 human-sheet, human-analyze, report-assets.  `all` runs everything except human-analyze.
 """
 import argparse
@@ -15,7 +15,7 @@ import yaml
 
 from . import data as data_mod
 from .dataset import StoryLMDataset, make_loader
-from .metrics import describe_lengths, group_table, sample_table
+from .metrics import describe_lengths, group_table, prompt_sensitivity, sample_table
 from .prompts import get_prompts
 from .tokenizer import WordTokenizer
 from .utils import (get_device, hardware_info, load_config, load_jsonl, out_path, save_json, save_jsonl,
@@ -145,6 +145,30 @@ def stage_generate(cfg, log, args):
     log(f"saved {len(rows)} generations to {path}")
 
 
+def stage_length_test(cfg, log, args):
+    from .generate import run_length_test
+    from .train import load_model
+
+    device = get_device()
+    tok = WordTokenizer.load(out_path(cfg, "vocab.json"))
+    models = {cell: load_model(out_path(cfg, "checkpoints", f"{cell}.pt"), cfg, tok, device)[0] for cell in MODELS}
+    rows = run_length_test(models, tok, data_mod.load_splits(cfg)["test"], cfg, device, log)
+    df = pd.DataFrame(rows)
+    df.to_csv(out_path(cfg, "eval", "length_test.csv"), index=False)
+    lcfg = cfg["length_test"]
+    df["premature"] = (df.stop_reason == "eos") & (df.n_tokens < lcfg["premature_tokens"])
+    df["no_eos"] = df.stop_reason == "max_len"
+    df["too_long"] = df.no_eos | (df.n_tokens > lcfg["long_factor"] * df.true_rest)
+    summary = df.groupby(["system", "config"], sort=False).agg(
+        n=("n_tokens", "size"), gen_len_mean=("n_tokens", "mean"), gen_len_median=("n_tokens", "median"),
+        true_len_mean=("true_rest", "mean"), true_len_median=("true_rest", "median"),
+        premature_pct=("premature", "mean"), no_eos_pct=("no_eos", "mean"), too_long_pct=("too_long", "mean"))
+    for c in ("premature_pct", "no_eos_pct", "too_long_pct"):
+        summary[c] *= 100
+    summary.reset_index().to_csv(out_path(cfg, "tables", "length_test.csv"), index=False)
+    log(f"length test summary:\n{summary.round(1).to_string()}")
+
+
 def stage_llm(cfg, log, args):
     from .llm_baseline import run_llm
 
@@ -177,6 +201,7 @@ def stage_metrics(cfg, log, args):
                                                   index=False)
     p4 = [r for r in rows if r["group"] == "part4"]
     group_table(p4, thr).to_csv(out_path(cfg, "tables", "plot_twist_metrics.csv"), index=False)
+    prompt_sensitivity(rows).to_csv(out_path(cfg, "tables", "prompt_sensitivity.csv"), index=False)
     write_story_files(cfg, rows)
     log("metrics + story files written")
 
@@ -209,6 +234,8 @@ def write_story_files(cfg, rows):
 def stage_human_sheet(cfg, log, args):
     from .human_eval import build_sheet
 
+    # Sample IDs must not change once the sheet has been sent to evaluators.
+    write_once(out_path(cfg, "human_eval", "sheet.csv"), args.force)
     samples = build_sheet(all_generations(cfg), cfg, out_path(cfg, "human_eval", "x").parent)
     counts = pd.Series([s["system"] for s in samples]).value_counts().to_dict()
     log(f"human-eval sheet: {len(samples)} samples {counts}")
@@ -242,9 +269,9 @@ def stage_report_assets(cfg, log, args):
 
 
 STAGES = {"prepare": stage_prepare, "train": stage_train, "evaluate": stage_evaluate, "generate": stage_generate,
-          "llm": stage_llm, "metrics": stage_metrics, "human-sheet": stage_human_sheet,
+          "length-test": stage_length_test, "llm": stage_llm, "metrics": stage_metrics, "human-sheet": stage_human_sheet,
           "human-analyze": stage_human_analyze, "report-assets": stage_report_assets}
-ALL = ["prepare", "train", "evaluate", "generate", "llm", "metrics", "human-sheet", "report-assets"]
+ALL = ["prepare", "train", "evaluate", "generate", "length-test", "llm", "metrics", "human-sheet", "report-assets"]
 
 
 def main(argv=None):

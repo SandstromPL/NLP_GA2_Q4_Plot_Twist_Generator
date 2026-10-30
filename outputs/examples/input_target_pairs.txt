@@ -1,0 +1,20 @@
+Story (train[0], first 40 tokens): <bos> once there were two friends , sally and jack . they were both very playful . they wanted to play a game together . " i know ! " jack shouted . " let 's number the mop !
+
+Input-target pairs (model sees input[:t+1], must predict target[t]):
+  t= 0  context ...<bos>                                         -> target: once
+  t= 1  context ...<bos> once                                    -> target: there
+  t= 2  context ...<bos> once there                              -> target: were
+  t= 3  context ...<bos> once there were                         -> target: two
+  t= 4  context ...<bos> once there were two                     -> target: friends
+  t= 5  context ...<bos> once there were two friends             -> target: ,
+  t= 6  context ...once there were two friends ,                 -> target: sally
+  t= 7  context ...there were two friends , sally                -> target: and
+  t= 8  context ...were two friends , sally and                  -> target: jack
+  t= 9  context ...two friends , sally and jack                  -> target: .
+  t=10  context ...friends , sally and jack .                    -> target: they
+  t=11  context ..., sally and jack . they                       -> target: were
+
+Tensor view: input = ids[:-1] (len 154), target = ids[1:] (len 154)
+First 15 input ids : [2, 47, 36, 48, 240, 67, 7, 435, 6, 180, 4, 15, 48, 231, 37]
+First 15 target ids: [47, 36, 48, 240, 67, 7, 435, 6, 180, 4, 15, 48, 231, 37, 1596]
+Special ids: pad=0 unk=1 bos=2 eos=3

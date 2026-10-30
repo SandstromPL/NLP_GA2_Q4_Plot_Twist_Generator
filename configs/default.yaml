@@ -55,6 +55,14 @@ generation:
     - {name: topp_0.9,       strategy: sample, temperature: 1.0, top_p: 0.9}
     - {name: topk_40_rep1.2, strategy: sample, temperature: 1.0, top_k: 40, repetition_penalty: 1.2}
 
+length_test:              # termination check on held-out test stories (first sentence as prompt)
+  n_stories: 100
+  max_new_tokens: 600     # well above the 95th-percentile test story length (446 tokens)
+  configs: [greedy, temp_0.8, topk_40]
+  seed: 0
+  premature_tokens: 20
+  long_factor: 2.0        # "excessively long" = more than 2x the real story's remaining length, or no <eos>
+
 human_eval:
   configs: [temp_0.8, topk_40]   # decoding configs shown to evaluators (seed 0 only, fixed in advance)
   prompt_group: part4            # Plot-Twist Challenge openings

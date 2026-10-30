@@ -1,0 +1,115 @@
+{
+  "splits": {
+    "streamed": 40000,
+    "dropped_short": 12,
+    "dropped_duplicates": 50,
+    "unique_clean": 39938,
+    "n_train": 20000,
+    "n_val": 1000,
+    "n_test": 1000
+  },
+  "vocab": {
+    "train_types": 10971,
+    "train_tokens": 4221472,
+    "vocab_size": 7590,
+    "min_freq": 3,
+    "train_tokens_covered": 0.9989591308434593,
+    "unk_rate_train": 0.001040869156540657,
+    "unk_rate_val": 0.0020016886283215226,
+    "unk_rate_test": 0.002201296318943378
+  },
+  "sequences": {
+    "train": {
+      "stories": 20000,
+      "windows": 20531,
+      "target_tokens": 4241472,
+      "stories_split_into_windows": 531,
+      "pct_split": 2.655,
+      "story_length_tokens": {
+        "mean": 213.0736,
+        "median": 182.0,
+        "p95": 441.0,
+        "max": 1025,
+        "min": 58
+      }
+    },
+    "val": {
+      "stories": 1000,
+      "windows": 1029,
+      "target_tokens": 211822,
+      "stories_split_into_windows": 29,
+      "pct_split": 2.9,
+      "story_length_tokens": {
+        "mean": 212.822,
+        "median": 180.5,
+        "p95": 460.0,
+        "max": 992,
+        "min": 77
+      }
+    },
+    "test": {
+      "stories": 1000,
+      "windows": 1029,
+      "target_tokens": 213602,
+      "stories_split_into_windows": 29,
+      "pct_split": 2.9,
+      "story_length_tokens": {
+        "mean": 214.602,
+        "median": 182.0,
+        "p95": 446.04999999999995,
+        "max": 985,
+        "min": 62
+      }
+    }
+  },
+  "prompt_oov": {
+    "P3_mystery": [
+      "detective"
+    ],
+    "P3_discovery": [],
+    "P3_unusual_character": [],
+    "P3_problem": [],
+    "P3_unexpected_ending": [],
+    "P4_exam": [
+      "examination",
+      "contained"
+    ],
+    "P4_robot": [
+      "version"
+    ],
+    "P4_detective": [
+      "detective",
+      "murder",
+      "crime"
+    ],
+    "P4_village": [
+      "previous"
+    ],
+    "P4_letter": [
+      "addressed"
+    ]
+  },
+  "config": {
+    "data": {
+      "hf_name": "roneneldan/TinyStories",
+      "hf_split": "train",
+      "pool_size": 40000,
+      "n_train": 20000,
+      "n_val": 1000,
+      "n_test": 1000,
+      "min_words": 20,
+      "cache_dir": "data/cache",
+      "splits_file": "data/splits.json"
+    },
+    "tokenizer": {
+      "lowercase": true,
+      "min_freq": 3,
+      "max_vocab": 12000
+    },
+    "sequences": {
+      "max_len": 512,
+      "max_tokens_per_batch": 12000
+    }
+  },
+  "seed": 42
+}

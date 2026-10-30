@@ -1,0 +1,173 @@
+{
+  "config": {
+    "seed": 42,
+    "output_dir": "outputs",
+    "data": {
+      "hf_name": "roneneldan/TinyStories",
+      "hf_split": "train",
+      "pool_size": 40000,
+      "n_train": 20000,
+      "n_val": 1000,
+      "n_test": 1000,
+      "min_words": 20,
+      "cache_dir": "data/cache",
+      "splits_file": "data/splits.json"
+    },
+    "tokenizer": {
+      "lowercase": true,
+      "min_freq": 3,
+      "max_vocab": 12000
+    },
+    "sequences": {
+      "max_len": 512,
+      "max_tokens_per_batch": 12000
+    },
+    "model": {
+      "emb_dim": 256,
+      "hidden_dim": 512,
+      "num_layers": 2,
+      "dropout": 0.3
+    },
+    "train": {
+      "epochs": 15,
+      "patience": 2,
+      "lr": 0.001,
+      "weight_decay": 0.01,
+      "grad_clip": 1.0,
+      "lr_decay": 0.5,
+      "amp": true,
+      "log_every": 50
+    },
+    "generation": {
+      "max_new_tokens": 150,
+      "premature_threshold": 20,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "ban_tokens": [
+        "<unk>",
+        "<pad>",
+        "<bos>"
+      ],
+      "configs": [
+        {
+          "name": "greedy",
+          "strategy": "greedy"
+        },
+        {
+          "name": "greedy_rep1.2",
+          "strategy": "greedy",
+          "repetition_penalty": 1.2
+        },
+        {
+          "name": "temp_0.5",
+          "strategy": "sample",
+          "temperature": 0.5
+        },
+        {
+          "name": "temp_0.8",
+          "strategy": "sample",
+          "temperature": 0.8
+        },
+        {
+          "name": "temp_1.0",
+          "strategy": "sample",
+          "temperature": 1.0
+        },
+        {
+          "name": "temp_1.2",
+          "strategy": "sample",
+          "temperature": 1.2
+        },
+        {
+          "name": "topk_10",
+          "strategy": "sample",
+          "temperature": 1.0,
+          "top_k": 10
+        },
+        {
+          "name": "topk_40",
+          "strategy": "sample",
+          "temperature": 1.0,
+          "top_k": 40
+        },
+        {
+          "name": "topp_0.9",
+          "strategy": "sample",
+          "temperature": 1.0,
+          "top_p": 0.9
+        },
+        {
+          "name": "topk_40_rep1.2",
+          "strategy": "sample",
+          "temperature": 1.0,
+          "top_k": 40,
+          "repetition_penalty": 1.2
+        }
+      ]
+    },
+    "length_test": {
+      "n_stories": 100,
+      "max_new_tokens": 600,
+      "configs": [
+        "greedy",
+        "temp_0.8",
+        "topk_40"
+      ],
+      "seed": 0,
+      "premature_tokens": 20,
+      "long_factor": 2.0
+    },
+    "human_eval": {
+      "configs": [
+        "temp_0.8",
+        "topk_40"
+      ],
+      "prompt_group": "part4",
+      "seed": 0,
+      "shuffle_seed": 2026
+    },
+    "llm": {
+      "enabled": true,
+      "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+      "dtype": "float16",
+      "max_new_tokens": 220,
+      "system_prompt": "You are a storyteller who writes short, simple stories for children.",
+      "user_template": "Continue this story. Write the next part in simple English (about 120 words). Write only the continuation.\n\nStory opening: {prompt}",
+      "configs": [
+        {
+          "name": "greedy",
+          "strategy": "greedy"
+        },
+        {
+          "name": "topk_40",
+          "strategy": "sample",
+          "temperature": 1.0,
+          "top_k": 40
+        }
+      ]
+    }
+  },
+  "args": {
+    "stage": "report-assets",
+    "config": "configs/default.yaml",
+    "model": "both",
+    "set": [],
+    "force": false
+  },
+  "hardware": {
+    "python": "3.12.3",
+    "torch": "2.14.1+cu126",
+    "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+    "cpu_count": 20,
+    "device": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+    "gpu_memory_gb": 3.68,
+    "cuda": "12.6",
+    "cudnn": 91002
+  },
+  "time": "2026-10-30 14:17:20"
+}

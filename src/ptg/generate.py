@@ -82,3 +82,26 @@ def run_generation_grid(models, tokenizer, prompts, cfg, device, log=print):
                                  "seed": seed, "max_new_tokens": gcfg["max_new_tokens"], **res})
         log(f"generated {sum(r['system'] == model_name for r in rows)} continuations for {model_name}")
     return rows
+
+
+def run_length_test(models, tokenizer, test_rows, cfg, device, log=print):
+    """Termination check on held-out stories: start from each test story's first sentence and let
+    the model write until <eos> or a generous cap, then compare with the story's real remaining length."""
+    lcfg, gcfg = cfg["length_test"], cfg["generation"]
+    ban_ids = [tokenizer.stoi[t] for t in gcfg["ban_tokens"]]
+    configs = [c for c in gcfg["configs"] if c["name"] in lcfg["configs"]]
+    rows = []
+    for story in test_rows[: lcfg["n_stories"]]:
+        text = story["text"]
+        cut = min((i for i in (text.find(". "), text.find("! "), text.find("? ")) if i > 0), default=-1)
+        if cut < 0:
+            continue
+        prompt = text[: cut + 1]
+        true_rest = len(tokenizer.tokenize(text[cut + 1:]))
+        for name, model in models.items():
+            for dcfg in configs:
+                res = generate(model, tokenizer, prompt, dcfg, lcfg["seed"], lcfg["max_new_tokens"], ban_ids, device)
+                rows.append({"system": name, "hf_index": story["hf_index"], "config": dcfg["name"],
+                             "n_tokens": res["n_tokens"], "stop_reason": res["stop_reason"], "true_rest": true_rest})
+    log(f"length test: {len(rows)} generations")
+    return rows

@@ -1,0 +1,40 @@
+{
+  "model_id": "Qwen/Qwen2.5-0.5B-Instruct",
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "dtype": "torch.float16",
+  "system_prompt": "You are a storyteller who writes short, simple stories for children.",
+  "user_template": "Continue this story. Write the next part in simple English (about 120 words). Write only the continuation.\n\nStory opening: {prompt}",
+  "chat_template": "tokenizer.apply_chat_template(add_generation_prompt=True)",
+  "max_new_subword_tokens": 220,
+  "word_token_cap": 150,
+  "configs": [
+    {
+      "name": "greedy",
+      "strategy": "greedy"
+    },
+    {
+      "name": "topk_40",
+      "strategy": "sample",
+      "temperature": 1.0,
+      "top_k": 40
+    }
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "fine_tuned": false,
+  "hardware": {
+    "python": "3.12.3",
+    "torch": "2.14.1+cu126",
+    "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+    "cpu_count": 20,
+    "device": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+    "gpu_memory_gb": 3.68,
+    "cuda": "12.6",
+    "cudnn": 91002
+  }
+}

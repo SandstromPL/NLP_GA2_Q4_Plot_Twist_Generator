@@ -1,0 +1,3 @@
+Model,Params (total),Recurrent params,Epochs run,Best epoch,Train time (min),Val PPL,Test PPL
+Vanilla RNN,6.76M,0.92M,15,15,5.4,16.00,15.77
+LSTM,9.51M,3.68M,15,15,7.5,11.99,11.81

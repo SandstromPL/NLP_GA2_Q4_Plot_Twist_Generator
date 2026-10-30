@@ -12,6 +12,12 @@ Definitions (as reported):
 - Runaway: the max_new_tokens limit was reached without <eos>.
 - Prompt overlap: share of the prompt's content words that reappear in the continuation
   (a crude relevance proxy; it cannot detect paraphrase).
+
+Automatic failure flags (per sample, used for the failure-frequency analysis):
+- loop: rep-4 >= 0.3 (at least 30% of the 4-grams are repeats).
+- off_prompt: none of the prompt's content words reappears (prompt overlap = 0).
+- stock_character: introduces one of TinyStories' most common character names that is not in
+  the prompt, a sign of drifting back to the training distribution's default story.
 """
 import math
 
@@ -26,6 +32,13 @@ is am are was were be been being have has had do does did will would can could s
 i me my we our you your he him his she her it its they them their this that these those there here
 what which who whom when where why how all any both each few more most other some such no not only
 own same than too very just also as about after before because while once said says say one went
+""".split())
+
+
+LOOP_THRESHOLD = 0.3
+STOCK_NAMES = set("""
+lily tim timmy tom ben sue sara sarah mia max jack anna lucy emma jane mike bob molly billy joe
+amy kitty spot jill sally sam zoe leo
 """.split())
 
 
@@ -75,16 +88,21 @@ def prompt_overlap(prompt_tokens, tokens):
 
 def sample_metrics(row, premature_threshold):
     words = [t for t in row["tokens"] if is_word(t)]
+    rep4 = repetition_rate(words, 4)
+    overlap = prompt_overlap(row["prompt_tokens"], row["tokens"])
     return {
         "n_tokens": row["n_tokens"],
         "n_words": len(words),
         "distinct_1": distinct_n(words, 1),
         "distinct_2": distinct_n(words, 2),
-        "rep_4": repetition_rate(words, 4),
+        "rep_4": rep4,
         "sent_repeat": sentence_repeat_rate(row["tokens"]),
         "premature": row["stop_reason"] == "eos" and row["n_tokens"] < premature_threshold,
         "runaway": row["stop_reason"] == "max_len",
-        "prompt_overlap": prompt_overlap(row["prompt_tokens"], row["tokens"]),
+        "prompt_overlap": overlap,
+        "loop": bool(rep4 >= LOOP_THRESHOLD),
+        "off_prompt": overlap == 0,
+        "stock_character": bool((set(words) & STOCK_NAMES) - set(row["prompt_tokens"])),
     }
 
 
@@ -123,6 +141,9 @@ def group_table(rows, premature_threshold, by=("system", "config")):
             "premature_pct": 100 * grp["premature"].mean(),
             "runaway_pct": 100 * grp["runaway"].mean(),
             "prompt_overlap": grp["prompt_overlap"].mean(),
+            "loop_pct": 100 * grp["loop"].mean(),
+            "off_prompt_pct": 100 * grp["off_prompt"].mean(),
+            "stock_character_pct": 100 * grp["stock_character"].mean(),
         })
     return pd.DataFrame(out)
 
@@ -131,3 +152,47 @@ def describe_lengths(values):
     arr = np.asarray(values)
     return {"mean": float(arr.mean()), "median": float(np.median(arr)), "p95": float(np.percentile(arr, 95)),
             "max": int(arr.max()), "min": int(arr.min())}
+
+
+def _jaccard4(a, b):
+    ga, gb = set(ngrams(a, 4)), set(ngrams(b, 4))
+    return len(ga & gb) / len(ga | gb) if ga | gb else math.nan
+
+
+def prompt_sensitivity(rows, prefix=10):
+    """How much does the prompt (vs. the random seed) determine the continuation?
+
+    For every system+config, compares pairs of continuations
+      - cross-prompt: different prompts, same seed (same random numbers, different context);
+      - cross-seed:   same prompt, different seeds (same context, different random numbers).
+    Reports the mean 4-gram Jaccard similarity of the word tokens and the share of pairs whose
+    first `prefix` tokens are identical. If cross-prompt similarity is higher than cross-seed
+    similarity, the random draw shapes the story more than the prompt does.
+    """
+    from collections import defaultdict
+    from itertools import combinations
+
+    groups = defaultdict(list)
+    for r in rows:
+        groups[(r["system"], r["config"])].append(r)
+    out = []
+    for (system, config), grp in groups.items():
+        words = {id(r): [t for t in r["tokens"] if is_word(t)] for r in grp}
+        stats = {"cross_prompt": [], "cross_seed": []}
+        for a, b in combinations(grp, 2):
+            if a["seed"] == b["seed"] and a["prompt_id"] != b["prompt_id"]:
+                kind = "cross_prompt"
+            elif a["prompt_id"] == b["prompt_id"] and a["seed"] != b["seed"]:
+                kind = "cross_seed"
+            else:
+                continue
+            same_prefix = len(a["tokens"]) >= prefix and a["tokens"][:prefix] == b["tokens"][:prefix]
+            stats[kind].append((_jaccard4(words[id(a)], words[id(b)]), same_prefix))
+        row = {"system": system, "config": config}
+        for kind, vals in stats.items():
+            if vals:
+                row[f"{kind}_jaccard4"] = float(np.nanmean([v[0] for v in vals]))
+                row[f"{kind}_same_prefix_pct"] = 100 * float(np.mean([v[1] for v in vals]))
+                row[f"{kind}_pairs"] = len(vals)
+        out.append(row)
+    return pd.DataFrame(out)
