@@ -1,0 +1,14 @@
+\begin{tabular}{llrrrr}
+\toprule
+System & Config & Connected & Twist & Consistent & No repetition \\
+\midrule
+Vanilla RNN & greedy & 0.00 & 0.00 & 0.20 & 0.20 \\
+Vanilla RNN & temp\_0.8 & 0.10 & 0.00 & 0.30 & 0.40 \\
+Vanilla RNN & topk\_40 & 0.00 & 0.10 & 0.20 & 0.30 \\
+LSTM & greedy & 0.10 & 0.00 & 0.20 & 0.00 \\
+LSTM & temp\_0.8 & 0.10 & 0.30 & 0.30 & 0.50 \\
+LSTM & topk\_40 & 0.10 & 0.20 & 0.10 & 0.30 \\
+Qwen2.5-0.5B & greedy & 1.00 & 0.50 & 0.90 & 0.90 \\
+Qwen2.5-0.5B & topk\_40 & 0.90 & 0.60 & 0.70 & 1.00 \\
+\bottomrule
+\end{tabular}

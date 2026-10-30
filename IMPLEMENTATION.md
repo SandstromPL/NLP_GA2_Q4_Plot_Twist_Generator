@@ -47,7 +47,9 @@ ratings exist). Each stage can also be run alone, e.g. `python -m ptg.cli train 
 | 6 | `generate` · `generate.py`, `prompts.py` | Part 3: greedy, temperature (0.5/0.8/1.0/1.2), top-k (10/40) + extra top-p, rep. penalty; ≥5 prompts | `outputs/generations/generations.jsonl` |
 | 7 | `generate` (Part 4 prompts) | Part 4: 5 twist openings × both models × ≥2 strategies | `outputs/stories/part4_stories.md` |
 | 8 | `llm` · `llm_baseline.py` | Optional extension: checkpoint, template, decoding, precision, hardware recorded | `llm_generations.jsonl`, `llm_settings.json` |
-| 9 | `metrics` · `metrics.py` | Part 5: Distinct-1/2, repetition rate, length + premature/runaway rates | `outputs/tables/*.csv` |
+| 7b | `length-test` · `generate.py` | Part 5: premature / excessively long outputs, measured on held-out **test** stories (first sentence → up to 600 tokens vs. real length) | `outputs/tables/length_test.csv` |
+| 9 | `metrics` · `metrics.py` | Part 5: Distinct-1/2, repetition rate, length + premature/runaway rates; failure flags (loop, off-prompt, stock character); prompt-vs-seed sensitivity | `outputs/tables/*.csv` |
+| 9b | analyst annotation | Part 4: each seed-0 continuation judged on the 4 criteria (Yes/Partial/No + reason) | `outputs/analysis/part4_criteria.csv` |
 | 10 | `human-sheet` · `human_eval.py` | Part 5: blinded set of ≥10 samples, 5-point scale, 4 criteria | `outputs/human_eval/sheet.html/.csv` |
 | 11 | `human-analyze` · `human_eval.py` | Part 5: averages, disagreement, PPL vs human ratings | `outputs/human_eval/results_*.csv` |
 | 12 | `report-assets` · `figures.py` | Deliverables: curves, comparison tables | `outputs/figures/`, `outputs/tables/*.tex` |
@@ -104,12 +106,33 @@ ratings exist). Each stage can also be run alone, e.g. `python -m ptg.cli train 
 | 14:03 | README, requirements, report skeleton, notebook builder, submission script (`d0c8037`) |
 | 14:04 | `report-assets` now also writes verbatim LaTeX example boxes and copies figures/tables into `report/`; report skeleton compiles with pdflatex |
 
-## 6. Remaining
+| 14:13 | Full run done: RNN val/test PPL 16.00/15.77 (5.4 min), LSTM 11.99/11.81 (7.5 min); 840 generations; 30 Qwen generations; blinded 25-sample sheet |
+| 14:15 | Found: same seed ⇒ near-identical text for different prompts (prompt washed out); added prompt-sensitivity analysis and failure flags |
+| 14:16 | Held-out length test: greedy never ends in 73% (RNN) / 28% (LSTM) of test-story starts; sampling always ends |
+| 14:19 | Part 4 criteria judged for 40 continuations (analyst draft) |
+| 14:23 | Report results + Part 6 answers written from the real numbers; compiles (23 pages); numbers cross-checked |
+| 14:25 | Notebook executed with outputs (44 cells, 0 errors) |
 
-- [ ] Full run finishes; sanity-check numbers and generations
+## 6. Headline results
+
+| | Vanilla RNN | LSTM |
+|---|---:|---:|
+| Params | 6.76M | 9.51M |
+| Val / test PPL | 16.00 / 15.77 | **11.99 / 11.81** |
+| Greedy loops / no `<eos>` on held-out starts | 60% / 73% | 40% / 28% |
+| Off-prompt / stock character (all samples) | 68% / 71% | 50% / 33% |
+| Max gradient norm before clipping | 39 | 1.6 |
+
+The LSTM is the better language model and the more stable generator, but neither tells the story
+the opening asks for. Lower perplexity bought fluency, not storytelling.
+
+## 7. Remaining
+
+- [x] Full run finishes; sanity-check numbers and generations
 - [ ] Send `outputs/human_eval/sheet.html` + `ratings/TEMPLATE.csv` to 3 evaluators
-- [ ] Run `human-analyze` once ratings return
-- [ ] Results notebook (executed, with outputs)
-- [ ] README with setup and reproduce commands
-- [ ] LaTeX report (Overleaf) answering Part 6 Q1–Q7
-- [ ] Submission zip (code, notebook, checkpoints, vocab, outputs, report; no dataset)
+- [ ] Run `human-analyze` once ratings return; fill the red `\pending{}` spots in `report/main.tex`
+- [x] Results notebook (executed, with outputs)
+- [x] README with setup and reproduce commands
+- [x] LaTeX report answering Part 6 Q1–Q7 (human-rating parts pending)
+- [ ] Team names on the report title page; team review of `outputs/analysis/part4_criteria.csv`
+- [ ] Submission zip: `./make_submission.sh` (after the ratings are in)

@@ -79,6 +79,8 @@ def make_figures(cfg):
     for system, grp in dec.groupby("system"):
         ax.scatter(grp["distinct_2_pooled"], grp["rep_4"], color=COLORS[system], label=LABELS[system], s=30)
         for _, r in grp.iterrows():
+            if r["rep_4"] < 0.02 and system != "llm":
+                continue  # the near-zero cluster is unreadable when labelled; see the table instead
             ax.annotate(r["config"], (r["distinct_2_pooled"], r["rep_4"]), fontsize=6, xytext=(3, 2),
                         textcoords="offset points")
     ax.set(xlabel="Distinct-2 (pooled)", ylabel="repetition rate (rep-4)", title="Diversity vs. repetition by decoding config")
@@ -170,6 +172,18 @@ def make_tables(cfg):
         "Same first 10 tokens\\% (diff. prompt)"]].to_latex(out_path(cfg, "tables", "prompt_sensitivity.tex"),
                                                              index=False, float_format="%.3f", escape=False)
 
+    crit_path = out_path(cfg, "analysis", "part4_criteria.csv")
+    if crit_path.exists():  # human/analyst judgements of the Plot-Twist continuations
+        crit = ["connected", "twist", "consistent", "no_repetition"]
+        df = pd.read_csv(crit_path)
+        score = {"Yes": 1.0, "Partial": 0.5, "No": 0.0}
+        tab = df.assign(**{c: df[c].map(score) for c in crit}).groupby(["system", "config"], sort=False)[crit].mean()
+        tab = tab.reset_index()
+        tab["system"] = tab["system"].map(LABELS)
+        tab["config"] = tab["config"].str.replace("_", r"\_", regex=False)
+        tab.columns = ["System", "Config", "Connected", "Twist", "Consistent", "No repetition"]
+        tab.to_latex(out_path(cfg, "tables", "part4_criteria.tex"), index=False, float_format="%.2f", escape=False)
+
     stats = load_json(out_path(cfg, "data_stats.json"))
     v, sp = stats["vocab"], stats["splits"]
     seq = stats["sequences"]
@@ -232,3 +246,36 @@ def make_example_snippets(cfg):
                 for config in configs:
                     parts.append(box(system, pid, config))
         out_path(cfg, "tables", f"{name}.tex").write_text("\n".join(parts))
+
+# Examples quoted in the body of the report (seed 0 everywhere; chosen to illustrate a failure type
+# identified in the tables, the text itself is copied verbatim).
+HIGHLIGHTS = [
+    ("rnn", "P4_letter", "greedy", "greedy repetition loop"),
+    ("rnn", "P4_detective", "temp_0.8", "prompt ignored (compare the next box)"),
+    ("rnn", "P4_village", "temp_0.8", "prompt ignored (same seed, different opening)"),
+    ("lstm", "P4_exam", "temp_0.8", "entity inconsistency: the student is female in the opening"),
+    ("lstm", "P3_mystery", "temp_1.2", "high temperature"),
+    ("rnn", "P3_mystery", "greedy_rep1.2", "repetition penalty on greedy decoding"),
+    ("llm", "P4_robot", "topk_40", "zero-shot LLM baseline"),
+]
+
+
+def make_highlight_snippets(cfg):
+    from .prompts import get_prompts
+    from .utils import load_jsonl
+
+    rows = load_jsonl(out_path(cfg, "generations", "generations.jsonl"))
+    llm_path = out_path(cfg, "generations", "llm_generations.jsonl")
+    rows += load_jsonl(llm_path) if llm_path.exists() else []
+    index = {(r["system"], r["prompt_id"], r["config"], r["seed"]): r for r in rows}
+    prompts = {p["id"]: p["text"] for p in get_prompts()}
+    parts = []
+    for i, (system, pid, config, why) in enumerate(HIGHLIGHTS, 1):
+        r = index.get((system, pid, config, 0))
+        if r is None:
+            continue
+        title = (f"Ex. {i}: {LABELS[system]}, {pid.replace('_', ' ')}, {config.replace('_', ' ')}, seed 0 "
+                 f"({r['n_tokens']} tokens, stop: {r['stop_reason']})")
+        parts.append(f"\\human{{Ex.~{i} illustrates: {latex_escape(why)}. Opening: {latex_escape(prompts[pid])}}}\n"
+                     f"\\begin{{modelout}}{{{latex_escape(title)}}}\n\\small {latex_escape(r['text'])}\n\\end{{modelout}}\n")
+    out_path(cfg, "tables", "examples_highlights.tex").write_text("\n".join(parts))

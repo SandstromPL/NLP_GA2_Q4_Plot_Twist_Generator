@@ -1,0 +1,34 @@
+\human{Ex.~1 illustrates: greedy repetition loop. Opening: Sam received a letter addressed to him from one hundred years in the future.}
+\begin{modelout}{Ex. 1: Vanilla RNN, P4 letter, greedy, seed 0 (150 tokens, stop: max\_len)}
+\small He wanted to play with it. He wanted to play with it. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball. He wanted to play with the ball.
+\end{modelout}
+
+\human{Ex.~2 illustrates: prompt ignored (compare the next box). Opening: The detective solved the murder before the crime had even happened.}
+\begin{modelout}{Ex. 2: Vanilla RNN, P4 detective, temp 0.8, seed 0 (75 tokens, stop: eos)}
+\small Suddenly, he heard a loud noise. It made him feel sad and hurt. He tried to open the box, but he didn't know what to do. He swam back to the house and closed his eyes. He was happy when he put the flower in the water and it made bob feel better. He was so happy and thanked the magician for being a good helper.
+\end{modelout}
+
+\human{Ex.~3 illustrates: prompt ignored (same seed, different opening). Opening: One morning, the whole village woke up and discovered that nobody could remember the previous day.}
+\begin{modelout}{Ex. 3: Vanilla RNN, P4 village, temp 0.8, seed 0 (75 tokens, stop: eos)}
+\small Suddenly, he heard a loud noise. It made him feel sad and hurt. He tried to open the box, but he didn't know what to do. He swam back to the house and closed his eyes. He was happy when he put the flower in the water and it made bob feel better. He was so happy and thanked the magician for being a good helper.
+\end{modelout}
+
+\human{Ex.~4 illustrates: entity inconsistency: the student is female in the opening. Opening: A student opened her examination paper and saw that it already contained the answers to tomorrow's questions.}
+\begin{modelout}{Ex. 4: LSTM, P4 exam, temp 0.8, seed 0 (150 tokens, stop: max\_len)}
+\small Suddenly, he heard a loud noise and looked out the window. He saw a big, colorful balloon. It was shiny! It croaked from the ceiling and heard a loud noise. It was a loud noise and he looked around. He couldn't believe his eyes and it started to move in the sky. He was very surprised and so he ran towards it. The little boy was so excited and he ran to the playground. He jumped up in the air and the old bear started to blow. He just couldn't believe it forever. The boy was so excited! He hugged the bear and waved goodbye as the man was happy to have his home. He woke up with a small smile and watched the sun go down, and it was time to go
+\end{modelout}
+
+\human{Ex.~5 illustrates: high temperature. Opening: The detective entered the abandoned house and noticed that every clock had stopped at exactly midnight. Suddenly, the telephone rang...}
+\begin{modelout}{Ex. 5: LSTM, P3 mystery, temp 1.2, seed 0 (150 tokens, stop: max\_len)}
+\small Popcorn lay down and started his vacation back. Between the sunshine, all one answered, who demanded that the storm touched; spring was fragile, but then something heard the noise quickly. It was a loud noise outside from wide, smaller light! Molly couldn't believe what she had excitedly. She wanted her mother in warning. And nothing out, then something happened. How curl the pose may find something useful, there was all bright and white! Mama asked: "mommy, can that my avocados would happen in the sunny place where it go?". Mama nodded its head, keeping mike mad and enjoy the patient before she was only waiting at it. Emma woke up with her mom and felt very old. She started wearing more and more others all over
+\end{modelout}
+
+\human{Ex.~6 illustrates: repetition penalty on greedy decoding. Opening: The detective entered the abandoned house and noticed that every clock had stopped at exactly midnight. Suddenly, the telephone rang...}
+\begin{modelout}{Ex. 6: Vanilla RNN, P3 mystery, greedy rep1.2, seed 0 (132 tokens, stop: eos)}
+\small It was a big, scary monster! The bird was very sad because he wanted to go on an adventure. So, he decided to take a nap in his pocket. But then, something bad happened. The little boy saw a big tree with lots of leaves. Timmy loved to play with his toys all day long. One day, tim's mom asked him to help her find a new toy. Lily said yes and they went to the store. She found some yummy snacks and put them in a bowl. "Look, mommy! I'm going to get my ball!" she exclaimed. "You're welcome, lily. You are very kind."
+\end{modelout}
+
+\human{Ex.~7 illustrates: zero-shot LLM baseline. Opening: An old robot lived alone in a quiet shed. One morning, it received a message from its future version.}
+\begin{modelout}{Ex. 7: Qwen2.5-0.5B, P4 robot, topk 40, seed 0 (44 tokens, stop: eos)}
+\small After much contemplation, the old robot decided to play along. It received a message from its future self warning of an approaching threat, but instead of rushing out, it decided to take a moment to reflect on the situation.
+\end{modelout}

@@ -80,3 +80,9 @@ lstm   greedy    100         295.0           196.0          215.1            176
 [2026-10-30 14:17:29] lstm: val ppl 11.99  test ppl 11.81
 [2026-10-30 14:17:54] === stage: report-assets ===
 [2026-10-30 14:17:56] figures + LaTeX tables written (and copied to report/)
+[2026-10-30 14:19:34] === stage: report-assets ===
+[2026-10-30 14:19:35] figures + LaTeX tables written (and copied to report/)
+[2026-10-30 14:20:54] === stage: report-assets ===
+[2026-10-30 14:20:56] figures + LaTeX tables written (and copied to report/)
+[2026-10-30 14:23:24] === stage: report-assets ===
+[2026-10-30 14:23:26] figures + LaTeX tables written (and copied to report/)

@@ -106,6 +106,14 @@ show("P3_mystery", ["greedy", "temp_0.5", "temp_0.8", "temp_1.2", "topk_40"])
 """)
 code("""show("P3_problem", ["greedy", "temp_0.8", "temp_1.2", "topk_10", "topk_40_rep1.2"])""")
 md("All generations for all Part 3 prompts: `outputs/stories/part3_stories.md`.")
+md("""
+**Termination on held-out stories.** On the creative prompts many samples hit the 150-token cap,
+but real stories are longer than that. So we start from the first sentence of 100 *test*
+stories, allow up to 600 tokens, and compare with the real remaining length.
+""")
+code("""pd.read_csv(OUT / "tables/length_test.csv").round(1)""")
+md("**Automatic failure flags** (% of samples): loops, runaway, premature, off-prompt, stock characters.")
+code("""dec[["system", "config", "loop_pct", "runaway_pct", "premature_pct", "off_prompt_pct", "stock_character_pct"]].round(0)""")
 
 md("## Part 4: The Plot-Twist Challenge")
 code("""
@@ -114,6 +122,22 @@ for pid in ["P4_exam", "P4_robot", "P4_detective", "P4_village", "P4_letter"]:
 """)
 code("""pd.read_csv(OUT / "tables/plot_twist_metrics.csv").round(3)""")
 md("All Part 4 generations (5 seeds × 10 configs × 2 models + LLM): `outputs/stories/part4_stories.md`.")
+md("""
+**Criteria judgements (analyst annotation, human-written).** Each seed-0 continuation (greedy, T=0.8,
+top-k=40) is judged on the four criteria of the brief: Yes / Partial / No, with a reason.
+""")
+code("""
+crit = pd.read_csv(OUT / "analysis/part4_criteria.csv")
+score = {"Yes": 1, "Partial": 0.5, "No": 0}
+cols = ["connected", "twist", "consistent", "no_repetition"]
+display(crit.assign(**{c: crit[c].map(score) for c in cols}).groupby(["system", "config"], sort=False)[cols].mean())
+crit[["prompt_id", "system", "config"] + cols + ["note"]]
+""")
+md("""
+**Does the prompt or the random seed decide the story?** Continuations of *different* prompts with
+the *same* seed are compared with continuations of the *same* prompt with *different* seeds.
+""")
+code("""pd.read_csv(OUT / "tables/prompt_sensitivity.csv").round(3)""")
 
 md("## Part 5: Quantitative and human evaluation")
 code("""

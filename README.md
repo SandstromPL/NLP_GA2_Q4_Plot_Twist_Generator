@@ -26,6 +26,7 @@ outputs/
   tables/              metric tables (CSV + LaTeX)
   figures/             loss curves, gradient norms, diversity/repetition plots
   human_eval/          blinded sheet, hidden key, ratings/, analysis results
+  analysis/            human-written judgements (Part 4 criteria), kept apart from generated text
   run_log.txt          timestamped log of every stage
 report/                LaTeX source of the report (upload the folder to Overleaf)
 ```
@@ -47,7 +48,7 @@ Google Colab (GPU runtime): upload/unzip the project, `cd` into it, then
 
 ```bash
 export PYTHONPATH=src
-.venv/bin/python -m ptg.cli all             # prepare → train → evaluate → generate → llm → metrics → human-sheet → report-assets
+.venv/bin/python -m ptg.cli all             # prepare → train → evaluate → generate → length-test → llm → metrics → human-sheet → report-assets
 ```
 
 or stage by stage:
@@ -58,6 +59,7 @@ or stage by stage:
 .venv/bin/python -m ptg.cli train --model lstm
 .venv/bin/python -m ptg.cli evaluate        # val/test perplexity
 .venv/bin/python -m ptg.cli generate        # all prompts × decoding configs × seeds (refuses to overwrite; --force)
+.venv/bin/python -m ptg.cli length-test     # termination check: first sentence of 100 test stories, up to 600 tokens
 .venv/bin/python -m ptg.cli llm             # optional Qwen baseline (set llm.enabled: false to skip)
 .venv/bin/python -m ptg.cli metrics         # Distinct-n, repetition, length; story dumps
 .venv/bin/python -m ptg.cli human-sheet     # blinded rating sheet
