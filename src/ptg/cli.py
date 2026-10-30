@@ -226,10 +226,11 @@ def stage_human_analyze(cfg, log, args):
 
 
 def stage_report_assets(cfg, log, args):
-    from .figures import make_figures, make_tables
+    from .figures import make_example_snippets, make_figures, make_tables
 
     make_figures(cfg)
     make_tables(cfg)
+    make_example_snippets(cfg)
     # Mirror into report/ so the folder can be uploaded to Overleaf as-is.
     for kind, pattern in (("figures", "*.png"), ("tables", "*.tex")):
         dest = Path("report", kind)

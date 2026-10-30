@@ -101,6 +101,8 @@ ratings exist). Each stage can also be run alone, e.g. `python -m ptg.cli train 
 | 13:57 | Smoke test of the full pipeline on 1k stories (2 epochs) passed, LLM included |
 | 13:59 | Human-eval analysis exercised with throwaway random ratings (scratch folder only) |
 | 14:00 | Code committed (`8ce6ad4`); full run started on GPU |
+| 14:03 | README, requirements, report skeleton, notebook builder, submission script (`d0c8037`) |
+| 14:04 | `report-assets` now also writes verbatim LaTeX example boxes and copies figures/tables into `report/`; report skeleton compiles with pdflatex |
 
 ## 6. Remaining
 

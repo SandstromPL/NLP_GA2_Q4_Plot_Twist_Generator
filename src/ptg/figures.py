@@ -156,3 +156,47 @@ def make_tables(cfg):
     ]
     pd.DataFrame(data_rows, columns=["Quantity", "Value"]).to_latex(
         out_path(cfg, "tables", "data_stats.tex"), index=False, escape=False)
+
+
+LATEX_ESCAPES = {"\\": r"\textbackslash{}", "&": r"\&", "%": r"\%", "$": r"\$", "#": r"\#", "_": r"\_",
+                 "{": r"\{", "}": r"\}", "~": r"\textasciitilde{}", "^": r"\textasciicircum{}"}
+
+
+def latex_escape(text):
+    return "".join(LATEX_ESCAPES.get(ch, ch) for ch in text)
+
+
+def make_example_snippets(cfg):
+    """LaTeX boxes with generated text copied verbatim from the JSONL files (only LaTeX-escaped)."""
+    from .prompts import get_prompts
+    from .utils import load_jsonl
+
+    rows = load_jsonl(out_path(cfg, "generations", "generations.jsonl"))
+    llm_path = out_path(cfg, "generations", "llm_generations.jsonl")
+    rows += load_jsonl(llm_path) if llm_path.exists() else []
+    index = {(r["system"], r["prompt_id"], r["config"], r["seed"]): r for r in rows}
+
+    def box(system, pid, config, seed=0):
+        r = index.get((system, pid, config, seed))
+        if r is None:
+            return ""
+        body = latex_escape(r["text"]) if r["text"] else r"\textit{(empty: \texttt{<eos>} generated immediately)}"
+        title = f"{LABELS[system]}, {config.replace('_', ' ')}, seed {seed} ({r['n_tokens']} tokens, stop: {r['stop_reason']})"
+        return f"\\begin{{modelout}}{{{latex_escape(title)}}}\n\\small {body}\n\\end{{modelout}}\n"
+
+    specs = {
+        "examples_part3": [(p["id"], ["greedy", "temp_0.5", "temp_0.8", "temp_1.2", "topk_40", "topk_40_rep1.2"])
+                           for p in get_prompts("part3")[:2]],
+        "examples_part4": [(p["id"], ["greedy", "temp_0.8", "topk_40"]) for p in get_prompts("part4")],
+    }
+    prompts = {p["id"]: p for p in get_prompts()}
+    for name, items in specs.items():
+        parts = []
+        for pid, configs in items:
+            p = prompts[pid]
+            parts.append(f"\\subsubsection*{{{latex_escape(pid.replace('_', ' '))} ({latex_escape(p['theme'])})}}\n"
+                         f"\\human{{Opening (human-written): {latex_escape(p['text'])}}}\n")
+            for system in ("rnn", "lstm", "llm"):
+                for config in configs:
+                    parts.append(box(system, pid, config))
+        out_path(cfg, "tables", f"{name}.tex").write_text("\n".join(parts))
