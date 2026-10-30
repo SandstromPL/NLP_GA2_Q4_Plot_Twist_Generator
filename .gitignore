@@ -1,0 +1,27 @@
+# Planning / discussion files (kept local only)
+CLAUDE.md
+logs.txt
+Q4_Plot_Twist_Generator.md
+
+# Environment
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Dataset cache (never committed or submitted; only split indices are kept)
+data/cache/
+
+# Large or regenerated artefacts
+outputs/checkpoints/
+submission/
+*.zip
+
+# LaTeX build files
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.synctex.gz
+report/*.fdb_latexmk
+report/*.fls

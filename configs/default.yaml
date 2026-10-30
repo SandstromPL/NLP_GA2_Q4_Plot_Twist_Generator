@@ -1,0 +1,73 @@
+# Plot-Twist Generator: every hyper-parameter used by the pipeline lives here.
+seed: 42
+output_dir: outputs
+
+data:
+  hf_name: roneneldan/TinyStories
+  hf_split: train
+  pool_size: 40000        # first N stories of the HF train split are streamed, cleaned and deduplicated
+  n_train: 20000
+  n_val: 1000
+  n_test: 1000
+  min_words: 20           # stories shorter than this (after cleaning) are dropped
+  cache_dir: data/cache        # cleaned texts (git-ignored, never submitted)
+  splits_file: data/splits.json  # HF row indices of every split (committed)
+
+tokenizer:
+  lowercase: true
+  min_freq: 3             # train-split frequency needed to enter the vocabulary
+  max_vocab: 12000        # including the 4 special tokens
+
+sequences:
+  max_len: 512            # tokens per training window; longer stories are split into windows of the same story
+  max_tokens_per_batch: 12000
+
+model:                    # shared by the Vanilla RNN and the LSTM
+  emb_dim: 256
+  hidden_dim: 512
+  num_layers: 2
+  dropout: 0.3
+
+train:
+  epochs: 15
+  patience: 2             # early stopping on validation loss
+  lr: 0.001
+  weight_decay: 0.01
+  grad_clip: 1.0
+  lr_decay: 0.5           # ReduceLROnPlateau factor
+  amp: true               # bf16 autocast when supported, else fp16 + GradScaler; ignored on CPU
+  log_every: 50           # steps between train-loss log points
+
+generation:
+  max_new_tokens: 150
+  premature_threshold: 20 # <eos> within this many tokens counts as premature termination
+  seeds: [0, 1, 2, 3, 4]  # one sample per seed for every stochastic config
+  ban_tokens: ["<unk>", "<pad>", "<bos>"]
+  configs:
+    - {name: greedy,         strategy: greedy}
+    - {name: greedy_rep1.2,  strategy: greedy, repetition_penalty: 1.2}
+    - {name: temp_0.5,       strategy: sample, temperature: 0.5}
+    - {name: temp_0.8,       strategy: sample, temperature: 0.8}
+    - {name: temp_1.0,       strategy: sample, temperature: 1.0}
+    - {name: temp_1.2,       strategy: sample, temperature: 1.2}
+    - {name: topk_10,        strategy: sample, temperature: 1.0, top_k: 10}
+    - {name: topk_40,        strategy: sample, temperature: 1.0, top_k: 40}
+    - {name: topp_0.9,       strategy: sample, temperature: 1.0, top_p: 0.9}
+    - {name: topk_40_rep1.2, strategy: sample, temperature: 1.0, top_k: 40, repetition_penalty: 1.2}
+
+human_eval:
+  configs: [temp_0.8, topk_40]   # decoding configs shown to evaluators (seed 0 only, fixed in advance)
+  prompt_group: part4            # Plot-Twist Challenge openings
+  seed: 0
+  shuffle_seed: 2026
+
+llm:
+  enabled: true
+  model_id: Qwen/Qwen2.5-0.5B-Instruct
+  dtype: float16
+  max_new_tokens: 220            # subword tokens; output is then cut to generation.max_new_tokens word tokens
+  system_prompt: "You are a storyteller who writes short, simple stories for children."
+  user_template: "Continue this story. Write the next part in simple English (about 120 words). Write only the continuation.\n\nStory opening: {prompt}"
+  configs:
+    - {name: greedy,  strategy: greedy}
+    - {name: topk_40, strategy: sample, temperature: 1.0, top_k: 40}
