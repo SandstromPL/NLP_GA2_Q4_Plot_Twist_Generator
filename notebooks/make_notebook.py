@@ -157,6 +157,11 @@ else:
     print(f"Human ratings not analysed yet ({len(done)} rating files found). Run: python -m ptg.cli human-analyze")
 """)
 
+code("""
+if (OUT / "figures/human_eval.png").exists():
+    display(Image(OUT / "figures/human_eval.png"))
+""")
+
 md("## Optional extension: Qwen2.5-0.5B-Instruct (zero-shot)")
 code("""
 llm_path = OUT / "generations/llm_generations.jsonl"

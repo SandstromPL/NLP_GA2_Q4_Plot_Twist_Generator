@@ -246,8 +246,24 @@ def stage_human_analyze(cfg, log, args):
 
     samples = pd.read_csv(out_path(cfg, "tables", "sample_metrics.csv"))
     tables = analyze(out_path(cfg, "human_eval", "x").parent, samples)
+    from .figures import make_human_figure
+    from .human_eval import CRITERIA
+
     summary_for_latex(tables, MODEL_LABEL).to_latex(out_path(cfg, "tables", "human_eval.tex"), index=False, escape=False)
-    tables["agreement"].to_latex(out_path(cfg, "tables", "human_agreement.tex"), index=False, float_format="%.2f")
+    agree = tables["agreement"].rename(columns={"criterion": "Criterion", "krippendorff_alpha_ordinal": "Krippendorff's alpha (ordinal)",
+                                                "mean_within_sample_sd": "Mean within-sample sd"})
+    agree.to_latex(out_path(cfg, "tables", "human_agreement.tex"), index=False, float_format="%.2f")
+    if len(tables["lstm_vs_rnn"]):
+        t = tables["lstm_vs_rnn"].rename(columns={"criterion": "Criterion", "n_pairs": "Pairs", "lstm_mean": "LSTM mean",
+                                                  "rnn_mean": "RNN mean", "wilcoxon_p": "Wilcoxon $p$"})
+        t.to_latex(out_path(cfg, "tables", "human_lstm_vs_rnn.tex"), index=False, float_format="%.3f", escape=False)
+    if "metric_vs_human" in tables:
+        names = {"distinct_2": "Distinct-2", "rep_4": "Rep-4", "n_tokens": "Length", "prompt_overlap": "Prompt overlap"}
+        rho = tables["metric_vs_human"].pivot(index="metric", columns="criterion", values="spearman_rho")[CRITERIA]
+        rho.index = rho.index.map(names).rename(None)
+        rho.columns = [c.capitalize() for c in rho.columns]
+        rho.to_latex(out_path(cfg, "tables", "human_metric_corr.tex"), float_format="%.2f")
+    make_human_figure(cfg, tables)
     log(f"human eval overall means: {overall_mean(tables)}")
     log(f"agreement: {tables['agreement'].to_dict('records')}")
 

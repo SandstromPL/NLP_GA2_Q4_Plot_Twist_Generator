@@ -71,6 +71,17 @@ Any config value can be overridden from the command line, e.g. a quick smoke tes
 `.venv/bin/python -m ptg.cli all --set output_dir=/tmp/smoke data.n_train=1000 data.n_val=100 data.n_test=100 data.pool_size=3000 train.epochs=2`.
 Use a separate `data.cache_dir`/`data.splits_file` too so the real split is not overwritten.
 
+## Final assembly
+
+```bash
+./finalize.sh
+```
+
+Runs `human-analyze` (only if rating files exist), rebuilds figures and tables, compiles
+`report/main.pdf`, re-executes the notebook, and writes the submission folder
+`submission/Q4_Plot_Twist_Generator/` plus `submission/Q4_Plot_Twist_Generator.zip`
+(`./make_submission.sh` does only the packaging step).
+
 ## Human evaluation procedure
 
 1. `human-sheet` writes `outputs/human_eval/sheet.html` (what evaluators read), `sheet.csv`, and

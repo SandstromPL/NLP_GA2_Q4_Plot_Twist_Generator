@@ -279,3 +279,24 @@ def make_highlight_snippets(cfg):
         parts.append(f"\\human{{Ex.~{i} illustrates: {latex_escape(why)}. Opening: {latex_escape(prompts[pid])}}}\n"
                      f"\\begin{{modelout}}{{{latex_escape(title)}}}\n\\small {latex_escape(r['text'])}\n\\end{{modelout}}\n")
     out_path(cfg, "tables", "examples_highlights.tex").write_text("\n".join(parts))
+
+
+def make_human_figure(cfg, tables):
+    """Grouped bars: mean human rating (± sd) per system and criterion."""
+    from .human_eval import CRITERIA
+
+    by = tables["by_system"]
+    systems = [s for s in ("rnn", "lstm", "llm") if s in by.index]
+    x = np.arange(len(CRITERIA))
+    width = 0.8 / len(systems)
+    fig, ax = plt.subplots(figsize=(7, 3.6))
+    for i, s in enumerate(systems):
+        means = [by.loc[s, ("mean", c)] for c in CRITERIA]
+        sds = [by.loc[s, ("std", c)] for c in CRITERIA]
+        ax.bar(x + (i - (len(systems) - 1) / 2) * width, means, width, yerr=sds, capsize=3,
+               color=COLORS[s], label=LABELS[s])
+    ax.set_xticks(x, [c.capitalize() for c in CRITERIA])
+    ax.set(ylim=(0, 5.5), ylabel="mean rating (1-5)", title="Blinded human ratings (mean ± sd)")
+    ax.legend(fontsize=8)
+    ax.grid(axis="y", alpha=0.3)
+    _save(fig, cfg, "human_eval.png")

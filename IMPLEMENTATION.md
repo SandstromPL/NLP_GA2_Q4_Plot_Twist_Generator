@@ -130,7 +130,9 @@ the opening asks for. Lower perplexity bought fluency, not storytelling.
 
 - [x] Full run finishes; sanity-check numbers and generations
 - [ ] Send `outputs/human_eval/sheet.html` + `ratings/TEMPLATE.csv` to 3 evaluators
-- [ ] Run `human-analyze` once ratings return; fill the red `\pending{}` spots in `report/main.tex`
+- [x] `finalize.sh` (2026-11-02): one command for analysis → report → notebook → submission folder + zip
+- [x] Final folder `submission/Q4_Plot_Twist_Generator/` + zip built and checked (all deliverables present; no dataset)
+- [ ] Run `./finalize.sh` once ratings return; fill the red `\pending{}` spots in `report/main.tex`
 - [x] Results notebook (executed, with outputs)
 - [x] README with setup and reproduce commands
 - [x] LaTeX report answering Part 6 Q1–Q7 (human-rating parts pending)
