@@ -123,7 +123,7 @@ for pid in ["P4_exam", "P4_robot", "P4_detective", "P4_village", "P4_letter"]:
 code("""pd.read_csv(OUT / "tables/plot_twist_metrics.csv").round(3)""")
 md("All Part 4 generations (5 seeds × 10 configs × 2 models + LLM): `outputs/stories/part4_stories.md`.")
 md("""
-**Criteria judgements (analyst annotation, human-written).** Each seed-0 continuation (greedy, T=0.8,
+**Criteria judgements (analyst annotation, one annotator).** Each seed-0 continuation (greedy, T=0.8,
 top-k=40) is judged on the four criteria of the brief: Yes / Partial / No, with a reason.
 """)
 code("""
