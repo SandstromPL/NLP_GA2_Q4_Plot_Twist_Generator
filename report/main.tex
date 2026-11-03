@@ -34,73 +34,73 @@
 \maketitle
 
 \begin{abstract}
-We train a Vanilla RNN and an LSTM word-level language model from scratch on 20,000 TinyStories
-and use them to continue story openings under ten decoding configurations (greedy, temperature,
-top-$k$, top-$p$ and a repetition penalty). We evaluate perplexity, diversity (Distinct-1/2),
-repetition and length failures, and run a blinded rating study of plot-twist continuations, with
-three LLM judges standing in for human evaluators because a human study was not feasible in time.
-A zero-shot Qwen2.5-0.5B-Instruct serves as an optional reference. The LSTM is clearly the better language model (test perplexity 11.81 vs.\ 15.77). It is
-also the more stable generator, with fewer repetition loops and better-calibrated story lengths.
-Yet neither model tells the story it is asked to tell. Continuations reuse none of the opening's
-content words in 50--68\% of samples. Out-of-vocabulary words erase key premises. With a fixed
-random seed, two different openings often yield nearly the same continuation. Three blinded LLM
-judges, used in place of human raters, score both models equally low (coherence 1.4 of 5) and see no
-LSTM advantage. Lower perplexity bought fluency, not storytelling.
+We train a Vanilla RNN and an LSTM word-level language model from scratch on 20,000 TinyStories.
+We use them to continue story openings with ten decoding configurations (greedy, temperature,
+top-$k$, top-$p$ and a repetition penalty). We measure perplexity, diversity (Distinct-1/2),
+repetition and length failures. We also run a blinded rating study of plot-twist continuations.
+A human study was not possible in the time we had, so three LLM judges take the place of human evaluators.
+We use a zero-shot Qwen2.5-0.5B-Instruct as an optional reference. The LSTM is clearly the better language model (test perplexity 11.81 vs.\ 15.77). It is
+also the more stable generator. It has fewer repetition loops, and its story lengths are better calibrated.
+Still, neither model tells the story it is asked to tell. In 50--68\% of samples, the continuation
+reuses none of the opening's content words. Out-of-vocabulary words erase key parts of the premise. With a fixed
+random seed, two different openings often give nearly the same continuation. Three blinded LLM
+judges, used in place of human raters, give both models equally low scores (coherence 1.4 of 5). They see no
+LSTM advantage. Lower perplexity brought fluency, not better storytelling.
 \end{abstract}
 
 \section{Introduction}
-The brief asks whether a small neural language model can write a story that is coherent,
-interesting and surprising, and whether the better language model (lower perplexity) is also the
-better storyteller. We answer with controlled experiments: two architectures that differ only in
-the recurrent cell, one shared vocabulary and training recipe, and the same prompts, decoding
-settings and seeds for every comparison. All generated text in this report is reproduced
-\emph{exactly} as produced (only detokenised from the saved tokens); model output always appears in
-grey ``MODEL OUTPUT'' boxes, and all other text is human commentary. Failed generations are
-reported alongside successful ones. Code, configuration, checkpoints and all raw generations are
-included in the submission (see the README for exact commands).
+The brief asks two questions. Can a small neural language model write a story that is coherent,
+interesting and surprising? And is the better language model (lower perplexity) also the
+better storyteller? We answer with controlled experiments. The two architectures differ only in
+the recurrent cell. They share one vocabulary and one training recipe. Every comparison uses the same
+prompts, decoding settings and seeds. All generated text in this report appears
+\emph{exactly} as the model produced it (we only detokenised the saved tokens). Model output always appears in
+grey ``MODEL OUTPUT'' boxes. All other text is human commentary. We report failed generations
+next to successful ones. The submission includes code, configuration, checkpoints and all raw generations
+(see the README for exact commands).
 
 \section{Data preparation and next-token prediction (Part 1)}
 \label{sec:data}
 \paragraph{Corpus and subset.} We stream the first 40,000 stories of the TinyStories
-\texttt{train} split (\texttt{roneneldan/TinyStories}) in their published order, clean them,
-drop stories shorter than 20 words, and remove exact duplicates (case- and whitespace-insensitive).
-The unique stories are shuffled with seed 42 and split \emph{at the story level} into 20,000
-training, 1,000 validation and 1,000 test stories. Only then are training sequences built, so no
-part of a story can appear in more than one split. The Hugging Face row index of every story is
-saved in \texttt{data/splits.json}; the dataset itself is not part of the submission.
+\texttt{train} split (\texttt{roneneldan/TinyStories}) in their published order. We clean them,
+drop stories shorter than 20 words, and remove exact duplicates (ignoring case and whitespace).
+We shuffle the unique stories with seed 42. Then we split them \emph{at the story level} into 20,000
+training, 1,000 validation and 1,000 test stories. Only after this do we build training sequences. So no
+part of a story can appear in more than one split. We save the Hugging Face row index of every story
+in \texttt{data/splits.json}. The dataset itself is not part of the submission.
 Table~\ref{tab:data} summarises the result.
 
-\paragraph{Cleaning.} Unicode NFKC normalisation; repair of mis-decoded UTF-8 sequences that occur
-in TinyStories (e.g.\ the three-character garbage left by a wrongly decoded apostrophe); curly quotes and dashes mapped to ASCII;
-remaining non-ASCII characters removed; whitespace collapsed.
+\paragraph{Cleaning.} We apply Unicode NFKC normalisation. We repair wrongly decoded UTF-8 sequences that occur
+in TinyStories (e.g.\ the three garbage characters left by a wrongly decoded apostrophe). We map curly quotes and dashes to ASCII.
+We remove any remaining non-ASCII characters. We collapse repeated whitespace.
 
-\paragraph{Tokenisation and vocabulary.} Both models share one word-level tokenizer. Text is
-lowercased and split by a regular expression into words, clitics (\texttt{'s}, \texttt{'t},
-\texttt{'ll}, \dots), numbers and individual punctuation marks. The vocabulary is built from the
-\emph{training split only}: every token seen at least 3 times is kept. Rarer tokens map to
-\texttt{<unk>}. Four special tokens are added: \texttt{<pad>} (id 0), \texttt{<unk>},
+\paragraph{Tokenisation and vocabulary.} Both models share one word-level tokenizer. It
+lowercases the text. Then a regular expression splits it into words, clitics (short attached word parts such as \texttt{'s}, \texttt{'t},
+\texttt{'ll}, \dots), numbers and single punctuation marks. We build the vocabulary from the
+\emph{training split only}. It keeps every token seen at least 3 times. Rarer tokens map to
+\texttt{<unk>}. We add four special tokens: \texttt{<pad>} (id 0), \texttt{<unk>},
 \texttt{<bos>} and \texttt{<eos>}.
 
 \paragraph{Sequences and input--target pairs.} Every story becomes one id sequence
-\texttt{<bos>} $w_1 \dots w_n$ \texttt{<eos>}. The model input is the sequence without its last id
-and the target is the sequence shifted left by one, so at every position $t$ the model predicts
-$w_{t+1}$ from $w_{\le t}$ (example in Appendix~\ref{app:pairs}). Stories longer than 512 tokens
-(Table~\ref{tab:data}) are cut into consecutive windows of the \emph{same} story, overlapping by one
-token so every target is predicted exactly once. Hidden states start from zero for every window.
+\texttt{<bos>} $w_1 \dots w_n$ \texttt{<eos>}. The model input is this sequence without its last id.
+The target is the same sequence shifted left by one. So at every position $t$, the model predicts
+$w_{t+1}$ from $w_{\le t}$ (example in Appendix~\ref{app:pairs}). Some stories are longer than 512 tokens
+(Table~\ref{tab:data}). We cut these into consecutive windows of the \emph{same} story. The windows overlap by one
+token, so every target is predicted exactly once. Hidden states start from zero for every window.
 
-\paragraph{Why story boundaries must be preserved.} (i)~\emph{No leakage}: if overlapping windows
-of one story could fall into different splits, validation and test perplexity would measure
-memorisation rather than generalisation. Splitting whole stories, after removing duplicates,
-prevents this. (ii)~\emph{Correct conditioning}: if stories were joined into one stream, the
-model would learn to continue the end of story A with the start of an unrelated story B, and
-the hidden state would carry characters and events across the boundary. (iii)~\emph{Learning to
-stop}: only with an explicit \texttt{<eos>} at every story end can the model learn when a story is
-finished. Our premature-termination and runaway metrics (Part~5) depend on this.
+\paragraph{Why we keep story boundaries.} (i)~\emph{No leakage}: suppose overlapping windows
+of one story could fall into different splits. Then validation and test perplexity would measure
+memorisation, not generalisation. Splitting whole stories, after removing duplicates,
+prevents this. (ii)~\emph{Correct conditioning}: suppose stories were joined into one stream. Then the
+model would learn to continue the end of story A with the start of an unrelated story B. The
+hidden state would also carry characters and events across the boundary. (iii)~\emph{Learning to
+stop}: the model can learn when a story is finished only if every story ends with an explicit \texttt{<eos>}.
+Our premature-termination and runaway metrics (Part~5) depend on this.
 
-\paragraph{Padding.} Windows are grouped into batches of similar length (about 12k tokens per
-batch) and right-padded with \texttt{<pad>}. Padded target positions are excluded from the loss
-via \texttt{ignore\_index}. Because both models are causal (left to right), padding placed after
-the real tokens cannot influence any hidden state or prediction at a real position, so the loss
+\paragraph{Padding.} We group windows into batches of similar length (about 12k tokens per
+batch). We right-pad them with \texttt{<pad>}. \texttt{ignore\_index} removes padded target positions
+from the loss. Both models are causal: they read left to right. So padding placed after
+the real tokens cannot change any hidden state or prediction at a real position. The loss therefore
 equals the loss on the unpadded sequences. The pad embedding is fixed at zero
 (\texttt{padding\_idx}).
 
@@ -112,23 +112,24 @@ equals the loss on the unpadded sequences. The pad embedding is fixed at zero
 \section{Models and training (Part 2)}
 \label{sec:models}
 \paragraph{Architectures.} Model A: \texttt{Embedding(V,256)} $\rightarrow$ 2-layer
-\texttt{nn.RNN} (tanh, hidden 512) $\rightarrow$ \texttt{Linear(512,V)}. Model B: identical, with
-\texttt{nn.LSTM} in place of \texttt{nn.RNN}. Dropout 0.3 is applied to the embeddings, between
-the recurrent layers and before the output layer. Both are trained with token-level cross-entropy.
+\texttt{nn.RNN} (tanh, hidden 512) $\rightarrow$ \texttt{Linear(512,V)}. Model B is the same, but
+uses \texttt{nn.LSTM} instead of \texttt{nn.RNN}. We apply dropout 0.3 to the embeddings, between
+the recurrent layers and before the output layer. We train both models with token-level cross-entropy.
 
-\paragraph{Identical training conditions.} Same data, vocabulary, batches (seed 42), embedding
-and hidden sizes, depth and dropout; AdamW (lr $10^{-3}$, weight decay 0.01); gradient-norm
-clipping at 1.0; ReduceLROnPlateau (factor 0.5) on validation loss; at most 15 epochs with early
-stopping (patience 2); the checkpoint with the lowest validation loss is kept. Mixed precision
+\paragraph{Same training conditions.} Both models use the same data, vocabulary, batches (seed 42),
+embedding and hidden sizes, depth and dropout. We use AdamW (lr $10^{-3}$, weight decay 0.01) and
+clip the gradient norm at 1.0. ReduceLROnPlateau (factor 0.5) lowers the learning rate when the
+validation loss stops improving. Training runs for at most 15 epochs, with early stopping
+(patience 2). We keep the checkpoint with the lowest validation loss. We train with mixed precision
 (bf16 autocast) on one NVIDIA RTX 3050 Ti Laptop GPU (4~GB).
-\emph{Unavoidable difference}: an LSTM layer has four gates and therefore four times the
-recurrent weights of a Vanilla RNN layer of the same width, so the LSTM has more parameters
-(Table~\ref{tab:models}). We kept the widths equal, as the brief asks, rather than matching
+\emph{Unavoidable difference}: an LSTM layer has four gates. So it has four times the recurrent
+weights of a Vanilla RNN layer of the same width. As a result, the LSTM has more parameters
+(Table~\ref{tab:models}). We kept the widths equal, as the brief asks. We did not match the
 parameter counts.
 
 \begin{table}[H]\centering\small
-\caption{Model size, training cost and perplexity (perplexity = exp of the mean token-level
-cross-entropy over all non-pad targets, \texttt{<eos>} included).}\label{tab:models}
+\caption{Model size, training cost and perplexity. Perplexity = exp of the mean token-level
+cross-entropy over all non-pad targets, including \texttt{<eos>}.}\label{tab:models}
 \resizebox{\linewidth}{!}{\input{tables/model_summary.tex}}
 \end{table}
 
@@ -137,58 +138,62 @@ cross-entropy over all non-pad targets, \texttt{<eos>} included).}\label{tab:mod
 \caption{Training and validation loss per epoch, and validation perplexity.}\label{fig:loss}
 \end{figure}
 
-\paragraph{Results.} With identical width and training budget, the LSTM reaches a 25\% lower
-perplexity than the Vanilla RNN on both validation and test data (Table~\ref{tab:models}).
-The RNN learns faster at first: after epoch~1 its validation perplexity is 33.6, against 108.6 for
-the LSTM, which has more parameters and has to learn its gates. The curves cross between epochs~5 and~6
-(19.65 vs.\ 19.68, then 18.55 vs.\ 17.71), and the LSTM keeps improving faster after that (Fig.~\ref{fig:loss}). Neither model had fully
-converged at the 15-epoch budget: in the last epoch validation perplexity still fell from 16.09 to
-16.00 (RNN) and from 12.32 to 11.99 (LSTM). The steeper LSTM curve suggests the gap would widen
-with longer training. Training loss lies above validation loss for both models because dropout is
-active only during training.
+\paragraph{Results.} With the same width and training budget, the LSTM reaches 25\% lower
+perplexity than the Vanilla RNN. This holds on both validation and test data (Table~\ref{tab:models}).
+The RNN learns faster at first. After epoch~1, its validation perplexity is 33.6, while the LSTM's
+is 108.6. The LSTM has more parameters and has to learn its gates. The curves cross between
+epochs~5 and~6 (19.65 vs.\ 19.68, then 18.55 vs.\ 17.71). After that, the LSTM keeps improving
+faster (Fig.~\ref{fig:loss}). Neither model had fully converged (stopped improving) within the
+15-epoch budget. In the last epoch, validation perplexity still fell from 16.09 to 16.00 (RNN) and
+from 12.32 to 11.99 (LSTM). The LSTM curve is steeper. This suggests that the gap would grow with
+longer training. For both models, training loss is higher than validation loss. This is because
+dropout is active only during training.
 
-\paragraph{Gradient behaviour.} Before clipping, the RNN's gradient norm spiked up to 39 (1.8\% of
-the logged steps exceeded the clipping threshold of 1.0). The LSTM's never exceeded 1.62
-(Fig.~\ref{fig:grad}). This is the exploding-gradient behaviour expected of a tanh RNN trained by
-backpropagation through time over hundreds of steps. Gradient clipping kept its training stable.
+\paragraph{Gradient behaviour.} Before clipping, the RNN's gradient norm jumped as high as 39.
+In 1.8\% of the logged steps, it was above the clipping threshold of 1.0. The LSTM's gradient norm
+never went above 1.62 (Fig.~\ref{fig:grad}). This is the exploding-gradient behaviour (sudden, very
+large gradients) that we expect from a tanh RNN. Such a model is trained by backpropagation through
+time over hundreds of steps. Gradient clipping kept the RNN's training stable.
 
-\paragraph{Loss by position.} Fig.~\ref{fig:grad} (right) shows the test loss as a function of the
-token's position in the story. Both models find the first tokens easy (``once upon a time''), so
-the absolute curve mostly reflects story structure. The informative quantity is the \emph{gap}: the
-LSTM's advantage is 0.04 nats on the first 8 tokens, 0.23 on tokens 8--32, and about 0.31 from
-token 32 onwards (0.30 for positions 256--512). The LSTM gains little where there is little context
-and a lot where there is more. This is the signature of a model that carries information further
-back, as gating is designed to do.
+\paragraph{Loss by position.} Fig.~\ref{fig:grad} (right) shows the test loss at each token position
+in the story. Both models find the first tokens easy (``once upon a time''). So the curve itself
+mostly reflects the structure of the stories. The useful number is the \emph{gap} between the two
+models. The LSTM's advantage is 0.04 nats on the first 8 tokens and 0.23 on tokens 8--32. From
+token 32 onwards, it is about 0.31 (0.30 for positions 256--512). So the LSTM gains little where
+there is little context, and a lot where there is more. This is the typical sign of a model that
+keeps information from further back. Gating is designed to do this.
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.49\linewidth]{grad_norms.png}\hfill
 \includegraphics[width=0.49\linewidth]{loss_by_position.png}
 \caption{Left: gradient norm before clipping (log scale). Right: mean test loss by token position
-(16-token bins, bins with $<$200 tokens omitted).}\label{fig:grad}
+(16-token bins; bins with $<$200 tokens are left out).}\label{fig:grad}
 \end{figure}
 
 \section{Decoding strategies (Part 3)}
 \label{sec:decoding}
-For a prompt we encode \texttt{<bos>} + prompt, run it through the model, and then generate up to
-150 tokens one at a time, feeding back the hidden state, until \texttt{<eos>}. At every step,
-\texttt{<unk>}, \texttt{<pad>} and \texttt{<bos>} are masked out so they cannot be generated.
-Strategies:
+For each prompt, we encode \texttt{<bos>} + prompt and run it through the model. Then we generate
+up to 150 tokens, one at a time, and feed the hidden state back at each step. We stop at
+\texttt{<eos>}. At every step we mask out \texttt{<unk>}, \texttt{<pad>} and \texttt{<bos>}, so
+the model cannot generate them.
+We use these strategies:
 \begin{itemize}
-\item \textbf{Greedy}: $\arg\max_w p(w \mid \text{context})$ (deterministic, one sample).
-\item \textbf{Temperature sampling}: sample from $\mathrm{softmax}(z/T)$ with
-  $T \in \{0.5, 0.8, 1.0, 1.2\}$.
-\item \textbf{Top-$k$ sampling}: keep the $k$ most probable tokens ($k \in \{10, 40\}$, $T=1$),
-  renormalise and sample.
-\item Extra: \textbf{top-$p$} (nucleus, $p=0.9$) and a \textbf{repetition penalty} of 1.2
-  (CTRL-style, applied to every token already in the prompt or output), combined with greedy and
-  with top-$k$=40, as a mitigation experiment.
+\item \textbf{Greedy}: always pick the most likely next token, $\arg\max_w p(w \mid \text{context})$.
+  This is deterministic, so there is only one sample.
+\item \textbf{Temperature sampling}: sample from $\mathrm{softmax}(z/T)$, where $z$ are the model's
+  scores, with $T \in \{0.5, 0.8, 1.0, 1.2\}$.
+\item \textbf{Top-$k$ sampling}: keep only the $k$ most likely tokens ($k \in \{10, 40\}$, $T=1$).
+  Then renormalise their probabilities and sample.
+\item Extra: \textbf{top-$p$} (nucleus, $p=0.9$) and a \textbf{repetition penalty} of 1.2.
+  The penalty is CTRL-style: it applies to every token already in the prompt or output. We use
+  it with greedy and with top-$k$=40. These extras are an experiment to reduce repetition.
 \end{itemize}
-Each of the 10 prompts (5 for Part~3, 5 for Part~4) is continued by both models with every
-configuration and, for the 8 stochastic configurations, 5 seeds (0--4; sampling uses a seeded CPU
-generator). This gives 840 continuations in total. All of them are in
+Both models continue each of the 10 prompts (5 for Part~3, 5 for Part~4) with every
+configuration. The 8 stochastic (random) configurations use 5 seeds each (0--4; sampling uses a
+seeded CPU generator). This gives 840 continuations in total. All of them are in
 \texttt{outputs/stories/}.
 
-\paragraph{Part 3 prompts} (themes required by the brief):
+\paragraph{Part 3 prompts} (the brief requires these themes):
 \begin{itemize}
 \item \emph{Mystery}: ``The detective entered the abandoned house and noticed that every clock
   had stopped at exactly midnight. Suddenly, the telephone rang\dots''
@@ -202,113 +207,117 @@ generator). This gives 840 continuations in total. All of them are in
   beach. He was very proud of it, but when he came back the next morning,''
 \end{itemize}
 
-\paragraph{Automatic metrics} (computed on the continuation only, never the prompt).
-\emph{Word tokens} are alphabetic tokens and clitics; punctuation is excluded.
-\textbf{Distinct-$n$} = unique $n$-grams / total $n$-grams. It is reported \emph{pooled} over all
-samples of a configuration (n-grams never cross samples) and as a per-sample mean.
-\textbf{Repetition rate (Rep-4)} = $1 -$ Distinct-4 of one continuation, i.e.\ the share of its
+\paragraph{Automatic metrics} (we compute them on the continuation only, never on the prompt).
+\emph{Word tokens} are alphabetic tokens and clitics. We exclude punctuation.
+\textbf{Distinct-$n$} = unique $n$-grams / total $n$-grams. We report it in two ways:
+\emph{pooled} over all samples of a configuration (n-grams never cross samples), and as a mean
+per sample.
+\textbf{Repetition rate (Rep-4)} = $1 -$ Distinct-4 of one continuation. This is the share of its
 4-grams that repeat an earlier 4-gram. \textbf{Sentence repetition} = share of sentences that
-exactly repeat an earlier sentence of the same sample. \textbf{Length}: mean generated tokens;
-\textbf{premature} = \texttt{<eos>} within 20 tokens; \textbf{runaway} = 150 tokens reached
-without \texttt{<eos>}. \textbf{Prompt overlap} = share of the prompt's content words that
-reappear (a crude relevance proxy).
+exactly repeat an earlier sentence of the same sample. \textbf{Length}: mean number of generated
+tokens. \textbf{Premature}: \texttt{<eos>} within 20 tokens. \textbf{Runaway}: the output reaches
+150 tokens without \texttt{<eos>}. \textbf{Prompt overlap} = share of the prompt's content words
+that appear again (a rough measure of relevance).
 
-\paragraph{Results.} Table~\ref{tab:decoding} reports the metrics for every configuration (50
-samples per stochastic configuration and model, 10 for greedy). Table~\ref{tab:fail} reports the
-automatic failure flags, and Fig.~\ref{fig:temp} shows the effect of temperature. Selected
-continuations are quoted verbatim in Examples~1--7 (Section~\ref{sec:twist}). The full grid for
-two prompts is in Appendix~\ref{app:p3}, and all 840 continuations are in
+\paragraph{Results.} Table~\ref{tab:decoding} gives the metrics for every configuration. There are
+50 samples per stochastic configuration and model, and 10 for greedy. Table~\ref{tab:fail} gives
+the automatic failure flags. Fig.~\ref{fig:temp} shows the effect of temperature.
+Examples~1--7 (Section~\ref{sec:twist}) quote selected continuations word for word.
+Appendix~\ref{app:p3} has the full grid for two prompts. All 840 continuations are in
 \texttt{outputs/stories/part3\_stories.md} and \texttt{part4\_stories.md}.
 
 \begin{itemize}
-\item \textbf{Greedy decoding degenerates into loops.} Rep-4 is 0.49 (RNN) and 0.28 (LSTM), and
+\item \textbf{Greedy decoding falls into loops.} Rep-4 is 0.49 (RNN) and 0.28 (LSTM).
   60\% / 40\% of greedy continuations are loops ($\geq$30\% repeated 4-grams). Ex.~1 repeats ``He
   wanted to play with the ball.'' until the length limit. Greedy also has the lowest diversity
   (Distinct-2 0.18 / 0.29).
 \item \textbf{Lower temperature $\Rightarrow$ more repetitive, safer text.} Sampling at $T=0.5$
-  already removes most loops (Rep-4 0.03 / 0.05). It is still the most repetitive and least diverse
-  sampling setting (Distinct-2 0.35 / 0.33), with generic sentences such as ``He was so happy''.
-  Diversity rises and repetition falls monotonically with $T$ (Fig.~\ref{fig:temp}).
+  already removes most loops (Rep-4 0.03 / 0.05). But it is still the most repetitive and least
+  diverse sampling setting (Distinct-2 0.35 / 0.33). It gives generic sentences such as
+  ``He was so happy''. As $T$ increases, diversity rises and repetition falls at every step (Fig.~\ref{fig:temp}).
 \item \textbf{Higher temperature $\Rightarrow$ more diverse but less coherent text.} At $T=1.2$,
   Distinct-2 peaks (0.54 / 0.62), but grammar breaks down. In Ex.~5 the LSTM writes ``How curl the
-  pose may find something useful''. Characters also churn: the share of LSTM continuations that
-  bring in a stock TinyStories name rises from 12\% at $T=0.5$ to 58\% at $T=1.2$.
-\item \textbf{Top-$k$ is a useful compromise.} $k=10$ keeps repetition near zero (Rep-4 $\leq$
-  0.005) with diversity between $T=0.5$ and $T=0.8$. $k=40$ matches the diversity of $T=0.8$--$1.0$.
-  Top-$k$ cuts the low-probability tail, which is where the rare-word errors that make $T\geq1.0$ ungrammatical come from.
-  Qualitatively, top-$k$=40 and $T=0.8$ give the most readable continuations, and we use these two
-  for the blinded rating study.
+  pose may find something useful''. Characters also keep changing. The share of LSTM continuations
+  that bring in a stock (very common) TinyStories name rises from 12\% at $T=0.5$ to 58\% at $T=1.2$.
+\item \textbf{Top-$k$ is a good middle ground.} $k=10$ keeps repetition near zero (Rep-4 $\leq$
+  0.005). Its diversity is between that of $T=0.5$ and $T=0.8$. $k=40$ matches the diversity of
+  $T=0.8$--$1.0$. Top-$k$ removes the low-probability tail. This tail is the source of the rare-word
+  errors that make $T\geq1.0$ ungrammatical.
+  When we read the outputs, top-$k$=40 and $T=0.8$ give the most readable continuations. We use
+  these two for the blinded rating study.
 \item \textbf{The repetition penalty removes loops but not incoherence.} The penalty (1.2) brings
-  greedy Rep-4 to 0.00 (RNN) and 0.003 (LSTM) and gives the highest Distinct-2 of all RNN/LSTM
-  configurations (up to 0.70). However, it also penalises useful repetition (names, pronouns), so
-  the story hops between characters (Ex.~6: Timmy, then Tim, then Lily within a few sentences).
-  80\% of RNN greedy+penalty samples introduce a stock character.
+  greedy Rep-4 down to 0.00 (RNN) and 0.003 (LSTM). It also gives the highest Distinct-2 of all
+  RNN/LSTM configurations (up to 0.70). However, it also penalises useful repetition, such as names
+  and pronouns. So the story jumps between characters (Ex.~6: Timmy, then Tim, then Lily within a
+  few sentences). 80\% of RNN greedy+penalty samples introduce a stock character.
 \end{itemize}
 
 \paragraph{Termination.} On the creative prompts, 20--60\% of sampled continuations reach the 150-token limit
-(Table~\ref{tab:fail}). But real TinyStories continue for a median of 176 more tokens after their
-first sentence, so hitting the limit is not by itself a failure. We therefore ran a
-\emph{held-out length test} (Table~\ref{tab:length}): we take the first sentence of each of 100
-\emph{test} stories as the prompt, generate up to 600 tokens, and compare with the real
-continuation. Greedy decoding never produces \texttt{<eos>} in 73\% (RNN) and 28\% (LSTM) of
-cases, because it loops. Every sampled continuation ends. The LSTM with top-$k$=40 is
-well calibrated (median 167 tokens vs.\ 176 real). The RNN at $T=0.8$ ends too early (median 110)
-yet runs to more than twice the real length in 16\% of cases. No sample ended prematurely
-($<$20 tokens) on in-domain starts. On the creative prompts, premature endings occur only for the
-RNN among the trained models ($\leq$4\%, and 10\% with greedy+penalty).
+(Table~\ref{tab:fail}). But real TinyStories go on for a median of 176 more tokens after their
+first sentence. So hitting the limit is not a failure by itself. For this reason, we ran a
+\emph{held-out length test} (Table~\ref{tab:length}). We take the first sentence of each of 100
+\emph{test} stories as the prompt. We generate up to 600 tokens and compare with the real
+continuation. In 73\% (RNN) and 28\% (LSTM) of cases, greedy decoding never produces
+\texttt{<eos>}, because it loops. Every sampled continuation ends. The LSTM with top-$k$=40 is
+well calibrated: its length is close to the real one (median 167 tokens vs.\ 176 real). The RNN
+at $T=0.8$ ends too early (median 110). Yet in 16\% of cases it runs to more than twice the real
+length. On in-domain starts, no sample ended prematurely ($<$20 tokens). On the creative prompts,
+among the trained models, only the RNN has premature endings ($\leq$4\%, and 10\% with
+greedy+penalty).
 
 \begin{table}[H]\centering
 \caption{Automatic metrics by system and decoding configuration (all 10 prompts; the LLM only on
 the 5 Part~4 prompts). D-$n$ = pooled Distinct-$n$; Sent.rep = sentence repetition; Len = mean
 generated tokens; Prem./Runaway = \texttt{<eos>} within 20 tokens / 150-token limit reached;
-Overlap = share of prompt content words reused.}\label{tab:decoding}
+Overlap = share of prompt content words used again.}\label{tab:decoding}
 {\scriptsize\resizebox{\linewidth}{!}{\input{tables/decoding_metrics.tex}}}
 \end{table}
 
 \begin{table}[H]\centering
 \caption{Automatic failure flags (\% of samples). Loop: Rep-4 $\geq$ 0.3. Off-prompt: no content
-word of the prompt reappears. Stock char.: introduces a frequent TinyStories name (Lily, Tim,
-Timmy, Ben, \dots) absent from the prompt.}\label{tab:fail}
+word of the prompt appears again. Stock char.: brings in a frequent TinyStories name (Lily, Tim,
+Timmy, Ben, \dots) that is not in the prompt.}\label{tab:fail}
 {\scriptsize\input{tables/failure_rates.tex}}
 \end{table}
 
 \begin{figure}[H]\centering
 \includegraphics[width=\linewidth]{temperature_effect.png}
 \includegraphics[width=0.62\linewidth]{diversity_vs_repetition.png}
-\caption{Top: effect of temperature on diversity, repetition and length flags. Bottom: every
-configuration in the diversity--repetition plane.}\label{fig:temp}
+\caption{Top: effect of temperature on diversity, repetition and length flags. Bottom: diversity
+vs.\ repetition for every configuration.}\label{fig:temp}
 \end{figure}
 
 \begin{table}[H]\centering
-\caption{Held-out termination test: first sentence of 100 test stories as prompt, up to 600 tokens
-(seed 0). Real = the remaining length of the actual story. Too long = no \texttt{<eos>} or more
-than $2\times$ the real length.}\label{tab:length}
+\caption{Held-out termination test: the first sentence of each of 100 test stories is the prompt;
+we generate up to 600 tokens (seed 0). Real = the remaining length of the actual story. Too long =
+no \texttt{<eos>} or more than $2\times$ the real length.}\label{tab:length}
 {\small\input{tables/length_test.tex}}
 \end{table}
 
 \section{The Plot-Twist Challenge (Part 4)}
 \label{sec:twist}
-The five openings follow the brief: an examination paper that already contains tomorrow's
-answers; an old robot receiving a message from its future version; a detective who solves a murder
-before it happens; a village that cannot remember the previous day; and a letter from 100 years
-in the future (exact wording in \texttt{src/ptg/prompts.py}). Each was continued by both models
-with all ten configurations and five seeds. We analyse greedy, temperature 0.8 and top-$k$=40 in
-detail, against the four criteria of the brief: (1)~connection to the prompt, (2)~a meaningful
-development or twist, (3)~consistency with earlier details, and (4)~no excessive repetition or
-meaningless jumps.
+We use the five openings from the brief. An examination paper already contains tomorrow's
+answers. An old robot gets a message from its future version. A detective solves a murder
+before it happens. A village cannot remember the previous day. A letter comes from 100 years
+in the future. The exact wording is in \texttt{src/ptg/prompts.py}. Both models continued each
+opening with all ten configurations and five seeds. We study greedy, temperature 0.8 and
+top-$k$=40 in detail. We judge them on the four criteria of the brief: (1)~connection to the
+prompt, (2)~a meaningful development or twist, (3)~consistency with earlier details, and (4)~no
+excessive repetition or meaningless jumps.
 
-\paragraph{The models cannot see several premises.} Words outside the 7,590-word vocabulary become
-\texttt{<unk>}: \emph{detective, murder, crime} (detective prompt), \emph{examination, contained}
-(exam), \emph{version} (robot), \emph{previous} (village) and \emph{addressed} (letter). The
-detective prompt reaches the models as ``the \texttt{<unk>} solved the \texttt{<unk>} before the
-\texttt{<unk>} had even happened''.
+\paragraph{The models cannot see several premises.} Any word outside the 7,590-word vocabulary
+becomes \texttt{<unk>}. This affects these premise words: \emph{detective, murder, crime}
+(detective prompt), \emph{examination, contained} (exam), \emph{version} (robot), \emph{previous}
+(village) and \emph{addressed} (letter). So the models receive the detective prompt as ``the
+\texttt{<unk>} solved the \texttt{<unk>} before the \texttt{<unk>} had even happened''.
 
 \paragraph{Criteria judgements.} Table~\ref{tab:p4} scores the 30 RNN/LSTM continuations (seed 0;
-greedy, $T=0.8$, top-$k$=40) and the 10 Qwen continuations on the four criteria of the brief
-(Yes = 1, Partial = 0.5, No = 0). Every judgement, with a one-line justification, is in
-\texttt{outputs/analysis/part4\_criteria.csv}. These are the analyst's judgements; the blinded
-LLM-judge ratings of Section~\ref{sec:eval} are a second, independent check. Over all 60 judgements per model,
-the RNN received 0 Yes / 18 Partial / 42 No and the LSTM 0 / 22 / 38.
+greedy, $T=0.8$, top-$k$=40) and the 10 Qwen continuations. It uses the four criteria of the brief
+(Yes = 1, Partial = 0.5, No = 0). Every judgement is in
+\texttt{outputs/analysis/part4\_criteria.csv}, with a one-line reason. The analyst made these
+judgements. The blinded LLM-judge ratings in Section~\ref{sec:eval} are a second, independent
+check. Over all 60 judgements per model, the RNN got 0 Yes / 18 Partial / 42 No. The LSTM got
+0 / 22 / 38.
 
 \begin{table}[H]\centering
 \caption{Plot-Twist criteria (mean over the 5 openings; Yes = 1, Partial = 0.5, No = 0).}\label{tab:p4}
@@ -316,56 +325,58 @@ the RNN received 0 Yes / 18 Partial / 42 No and the LSTM 0 / 22 / 38.
 \end{table}
 
 \begin{enumerate}
-\item \textbf{Connection to the prompt: essentially absent.} No RNN or LSTM continuation stays on
-  the premise. The closest are faint echoes: the LSTM continues the village prompt with ``he forgot
-  to remember its family'', opens the letter prompt with ``excited to see what was inside'', and
-  mentions ``a big machine'' after the robot prompt. Automatically, 78\% (RNN) and 62\% (LSTM) of Part~4 samples reuse
-  no content word of the opening (Appendix~\ref{app:p4tab}).
-\item \textbf{Twists are stock formulas.} When something surprising happens, it is one of
-  TinyStories' set phrases (``Suddenly, he heard a loud noise'', ``He couldn't believe his eyes'',
-  ``It was a giant puppy!''), never a development of the premise. A few are genuinely odd: the LSTM
-  ends one continuation with ``the boat disappeared from the sky and the lake was all gone''.
-\item \textbf{Consistency fails on entities.} The exam's female student becomes ``he'' (Ex.~4).
-  Sam becomes Tim, Joey, Jimmy, Joe and John within one passage. Characters thank themselves (``The
-  dog was so happy and thanked the dog'').
-\item \textbf{Repetition and jumps.} Greedy outputs loop (Ex.~1). Sampled outputs avoid repetition
-  but jump between unrelated scenes (a monkey, a fisherman, a fish and a king in four sentences).
+\item \textbf{Connection to the prompt: almost none.} No RNN or LSTM continuation stays on the
+  premise. The closest cases are weak echoes. The LSTM continues the village prompt with ``he forgot
+  to remember its family''. It opens the letter prompt with ``excited to see what was inside''. It
+  mentions ``a big machine'' after the robot prompt. An automatic check finds that 78\% (RNN) and
+  62\% (LSTM) of Part~4 samples reuse no content word of the opening (Appendix~\ref{app:p4tab}).
+\item \textbf{Twists are ready-made phrases.} When something surprising happens, it is a set phrase
+  from TinyStories (``Suddenly, he heard a loud noise'', ``He couldn't believe his eyes'',
+  ``It was a giant puppy!''). It never develops the premise. A few twists are truly strange. For
+  example, the LSTM ends one continuation with ``the boat disappeared from the sky and the lake was all gone''.
+\item \textbf{Consistency fails for characters.} The female student in the exam story becomes ``he''
+  (Ex.~4). Sam becomes Tim, Joey, Jimmy, Joe and John within one passage. Characters thank
+  themselves (``The dog was so happy and thanked the dog'').
+\item \textbf{Repetition and jumps.} Greedy outputs repeat themselves in a loop (Ex.~1). Sampled
+  outputs avoid repetition. But they jump between unrelated scenes (a monkey, a fisherman, a fish
+  and a king in four sentences).
 \end{enumerate}
 
 \paragraph{The seed matters more than the prompt.} With the same seed and configuration, the RNN
-produced word-for-word the same 75-token continuation for the detective and the village prompts
-(Ex.~2 and~3). Table~\ref{tab:sens} generalises this. For every sampling configuration, two
-continuations of \emph{different} prompts with the \emph{same} seed share more 4-grams than two
-continuations of the \emph{same} prompt with \emph{different} seeds, by a factor of 2--10. Up to
-4--7\% of cross-prompt pairs begin with the same 10 tokens, against 0\% of cross-seed pairs. The
-recurrent state retains so little of the opening that the random draw decides the story.
+gave the same 75-token continuation, word for word, for the detective and the village prompts
+(Ex.~2 and~3). Table~\ref{tab:sens} shows that this is a general pattern. Take any sampling
+configuration. Two continuations of \emph{different} prompts with the \emph{same} seed share more
+4-grams than two continuations of the \emph{same} prompt with \emph{different} seeds. The gap is a
+factor of 2--10. Up to 4--7\% of cross-prompt pairs start with the same 10 tokens. For cross-seed
+pairs, this is 0\%. The recurrent state keeps so little of the opening that the random draw
+decides the story.
 
 \begin{table}[H]\centering
-\caption{Prompt sensitivity (sampling configurations): mean 4-gram Jaccard similarity between
-continuations of different prompts with the same seed vs.\ the same prompt with different seeds,
-and the share of cross-prompt pairs with identical first 10 tokens.}\label{tab:sens}
+\caption{Prompt sensitivity (sampling configurations). Mean 4-gram Jaccard similarity between
+continuations of different prompts with the same seed, and of the same prompt with different seeds.
+Also, the share of cross-prompt pairs with identical first 10 tokens.}\label{tab:sens}
 {\scriptsize\input{tables/prompt_sensitivity.tex}}
 \end{table}
 
-\paragraph{RNN vs.\ LSTM in the challenge.} The LSTM scores slightly higher on twist and
-repetition at $T=0.8$ (Table~\ref{tab:p4}). Its continuations drift less into stock characters
-(12\% vs.\ 72\% at $T=0.8$ on the Part~4 prompts), and it stays with an unnamed ``he/she''
-protagonist longer. On the criterion that matters most, connection to the prompt, the two are
-equally poor.
+\paragraph{RNN vs.\ LSTM in the challenge.} At $T=0.8$, the LSTM scores slightly higher on twist
+and repetition (Table~\ref{tab:p4}). Its continuations drift less into stock characters
+(12\% vs.\ 72\% at $T=0.8$ on the Part~4 prompts). It also keeps an unnamed ``he/she'' main
+character for longer. The most important criterion is connection to the prompt. On this
+criterion, the two models are equally poor.
 
-\subsection*{Selected continuations (verbatim)}
+\subsection*{Selected continuations (exact model output)}
 \input{tables/examples_highlights.tex}
 
 \section{Is the better language model also the better storyteller? (Part 5)}
 \label{sec:eval}
 \subsection{Quantitative evaluation}
-Table~\ref{tab:quant} summarises the two trained models on the same held-out test split and the same
-generation grid (10 prompts $\times$ 10 configurations $\times$ up to 5 seeds = 420 continuations
-per model; settings in \texttt{outputs/generations/generation\_settings.json}).
+Table~\ref{tab:quant} shows the results of the two trained models. Both use the same held-out test
+split and the same generation grid: 10 prompts $\times$ 10 configurations $\times$ up to 5 seeds =
+420 continuations per model. The settings are in \texttt{outputs/generations/generation\_settings.json}.
 
 \begin{table}[H]\centering\small
-\caption{Quantitative comparison (all configurations pooled). Per-sample Distinct is the mean over
-samples; pooled Distinct counts unique $n$-grams over all 420 samples.}\label{tab:quant}
+\caption{Quantitative comparison (all configurations pooled together). Per-sample Distinct is the
+mean over samples. Pooled Distinct counts unique $n$-grams over all 420 samples.}\label{tab:quant}
 \begin{tabular}{lrr}
 \toprule
  & Vanilla RNN & LSTM \\
@@ -383,56 +394,60 @@ Off-prompt / stock character & 67.6\% / 71.4\% & 49.8\% / 33.1\% \\
 \end{tabular}
 \end{table}
 
-The RNN's \emph{higher} per-sample Distinct values are partly a length effect: its continuations are
-shorter (104 vs.\ 130 tokens), and Distinct-$n$ falls as texts get longer. At a matched
-configuration and $T\geq1.0$, the LSTM's pooled Distinct-2 is higher (0.60--0.62 vs.\ 0.53--0.54).
+The RNN has \emph{higher} per-sample Distinct values. This is partly an effect of length. Its
+continuations are shorter (104 vs.\ 130 tokens), and Distinct-$n$ falls as texts get longer. When
+we compare the same configuration at $T\geq1.0$, the LSTM's pooled Distinct-2 is higher
+(0.60--0.62 vs.\ 0.53--0.54).
 
 \subsection{Blinded evaluation (LLM judges as a proxy for human raters)}
-\paragraph{Design.} The sample set was fixed in the configuration file before any output was read:
-every Plot-Twist opening $\times$ \{Vanilla RNN, LSTM, Qwen\} $\times$ \{temperature 0.8,
-top-$k$=40\}, seed 0, i.e.\ 25 samples (the LLM contributes top-$k$=40 only). To prevent the surface
-form from revealing the system, every system's output passes through the same word tokenizer,
-lowercasing, detokeniser and 150-token cap. Samples were shuffled (seed 2026), given anonymous IDs,
-and shown with the opening on an HTML sheet. The key was kept in a separate file. Each rater
-independently rated every sample from 1 to 5 for coherence, grammatical quality, relevance to the
-opening, and creativity/surprise. Agreement is measured with Krippendorff's $\alpha$ (ordinal).
-LSTM and RNN are compared with a paired Wilcoxon signed-rank test over the 10 (opening, config)
-pairs, using the mean over raters.
+\paragraph{Design.} We fixed the sample set in the configuration file before we read any output.
+It covers every Plot-Twist opening $\times$ \{Vanilla RNN, LSTM, Qwen\} $\times$ \{temperature 0.8,
+top-$k$=40\}, with seed 0. This gives 25 samples (the LLM uses top-$k$=40 only). The surface form
+of the text should not reveal the system. So every system's output goes through the same word
+tokenizer, lowercasing, detokeniser and 150-token cap. We shuffled the samples (seed 2026) and gave
+them anonymous IDs. We showed each sample with its opening on an HTML sheet. The key (which ID
+belongs to which system) was kept in a separate file. Each rater rated every sample on their own,
+from 1 to 5. The criteria were coherence, grammatical quality, relevance to the opening, and
+creativity/surprise. We measure agreement with Krippendorff's $\alpha$ (ordinal). We compare LSTM
+and RNN with a paired Wilcoxon signed-rank test over the 10 (opening, config) pairs. For each pair
+we use the mean over raters.
 
 \paragraph{Raters: LLM judges, not people.} The brief asks for at least three human evaluators
-``wherever feasible''. A human study was not feasible before our deadline, so the ratings come from
-three LLM judges: Claude Haiku~5.5, Claude Sonnet~5.5 and Claude Opus~5.5 (Anthropic), each run as a
-separate agent. Each judge received only the blinded sheet (\texttt{sheet.csv}: ID, opening,
-continuation) and the instructions written for human raters, was told not to open any other project
-file, and wrote one CSV (\texttt{outputs/human\_eval/ratings/llm\_judge\_*.csv}, kept unedited).
-\textbf{These scores are a proxy for human judgement, not a substitute}, with three caveats:
-(i)~LLM judges tend to favour fluent, well-formed text, which helps the LLM baseline;
-(ii)~the three judges come from one model family and may share biases, so their agreement is likely
-higher than that of independent people; (iii)~they have not been validated against human ratings on
-this data. The sheet and template are ready for a human study (\texttt{outputs/human\_eval/README.md}).
+``wherever feasible''. We could not run a human study before our deadline. So the ratings come from
+three LLM judges: Claude Haiku~5.5, Claude Sonnet~5.5 and Claude Opus~5.5 (Anthropic). Each judge
+ran as a separate agent. Each judge got only the blinded sheet (\texttt{sheet.csv}: ID, opening,
+continuation) and the instructions written for human raters. We told each judge not to open any
+other project file. Each judge wrote one CSV (\texttt{outputs/human\_eval/ratings/llm\_judge\_*.csv}),
+which we kept unedited. \textbf{These scores are a proxy for human judgement, not a replacement for
+it.} There are three caveats: (i)~LLM judges tend to prefer fluent, well-formed text, and this helps
+the LLM baseline; (ii)~the three judges come from one model family and may share biases, so their
+agreement is likely higher than that of independent people; (iii)~their scores have not been checked
+against human ratings on this data. The sheet and template are ready for a human study
+(\texttt{outputs/human\_eval/README.md}).
 
 \paragraph{Results.} The three judges rated all 25 samples (300 ratings; Table~\ref{tab:human},
 Fig.~\ref{fig:human}).
 \begin{itemize}
-\item \textbf{RNN and LSTM are rated the same, near the floor.} Coherence 1.40 vs.\ 1.37, relevance
-  1.10 vs.\ 1.17, creativity 1.00 vs.\ 1.13 (RNN vs.\ LSTM). Grammar is rated higher (about 2.7) but
-  is still poor. No LSTM--RNN difference is significant (paired Wilcoxon over the 10
+\item \textbf{RNN and LSTM get the same ratings, close to the lowest score.} Coherence 1.40 vs.\ 1.37,
+  relevance 1.10 vs.\ 1.17, creativity 1.00 vs.\ 1.13 (RNN vs.\ LSTM). Grammar gets higher ratings
+  (about 2.7) but is still poor. No LSTM--RNN difference is significant (paired Wilcoxon over the 10
   opening$\times$config pairs, $p\geq0.25$ for every criterion; Table~\ref{tab:lstmrnn}).
-\item \textbf{The LLM is rated far higher} on grammar (4.67), relevance (4.13) and coherence (3.87),
-  but only 2.40 on creativity. The judges' comments repeat our own observation: it stays on topic
-  but turns the twist into a moral or drops the paradox (S21, S22).
-\item \textbf{Agreement} is substantial (Krippendorff's $\alpha$ 0.66--0.76; Table~\ref{tab:agree}),
-  but it is inflated by the large gap between the LLM and the trained models and by a floor effect
-  (RNN creativity is 1 in all 30 ratings), which leaves little room to disagree. No sample's
-  ratings differ by more than 2 points. The two most disputed are S05 (Qwen, village opening;
-  relevance 2--4: the village is kept but the memory loss is ignored) and S04 (RNN, detective
-  opening; grammar 3--5: two clean sentences unrelated to the opening).
+\item \textbf{The LLM gets much higher ratings} on grammar (4.67), relevance (4.13) and coherence
+  (3.87). But it gets only 2.40 on creativity. The judges' comments match our own observation. The
+  LLM stays on topic, but it turns the twist into a moral or drops the paradox (S21, S22).
+\item \textbf{Agreement} is substantial (Krippendorff's $\alpha$ 0.66--0.76; Table~\ref{tab:agree}).
+  But two things make it look higher than it really is. One is the large gap between the LLM and the
+  trained models. The other is a floor effect: RNN creativity is 1 in all 30 ratings, so there is
+  little room to disagree. No sample's ratings differ by more than 2 points. The two samples with the
+  most disagreement are these. S05 is Qwen on the village opening (relevance 2--4): it keeps
+  the village but ignores the memory loss. S04 is the RNN on the detective opening (grammar 3--5): it
+  gives two clean sentences unrelated to the opening.
 \item \textbf{Automatic metrics vs.\ ratings} (Spearman over the 25 samples; Table~\ref{tab:corr}).
-  Prompt overlap tracks relevance ($\rho=0.69$, $p<0.001$) and creativity ($\rho=0.51$, $p=0.01$),
-  which supports it as a relevance proxy. Distinct-2 is unrelated to every criterion
-  ($|\rho|\leq0.18$, $p\geq0.39$). Longer continuations are rated less coherent and less grammatical
-  ($\rho=-0.58$, $p=0.002$), largely because the LLM writes shorter and better text: length and
-  system are confounded.
+  Prompt overlap rises together with relevance ($\rho=0.69$, $p<0.001$) and creativity ($\rho=0.51$,
+  $p=0.01$). This supports its use as a relevance proxy. Distinct-2 is unrelated to every criterion
+  ($|\rho|\leq0.18$, $p\geq0.39$). Longer continuations get lower ratings for coherence and grammar
+  ($\rho=-0.58$, $p=0.002$). This is mostly because the LLM writes shorter and better text. So length
+  and system are confounded: we cannot separate their effects.
 \end{itemize}
 
 \begin{table}[H]\centering\caption{Blinded ratings by three LLM judges (1--5, mean $\pm$ sd over all
@@ -451,135 +466,136 @@ rating of each sample (25 samples).}\label{tab:corr}
 
 \section{Optional extension: a zero-shot open-source LLM}
 \label{sec:llm}
-\textbf{Checkpoint}: \texttt{Qwen/Qwen2.5-0.5B-Instruct} (revision recorded in
-\texttt{outputs/generations/llm\_settings.json}), \textbf{fp16}, same GPU, \textbf{not fine-tuned}.
-\textbf{Prompt template} (chat format via the tokenizer's chat template): system ``You are a
+\textbf{Checkpoint}: \texttt{Qwen/Qwen2.5-0.5B-Instruct} in \textbf{fp16}, on the same GPU, \textbf{not fine-tuned}.
+Its exact revision is recorded in \texttt{outputs/generations/llm\_settings.json}.
+\textbf{Prompt template} (chat format, built with the tokenizer's chat template): system ``You are a
 storyteller who writes short, simple stories for children.''; user ``Continue this story. Write the
 next part in simple English (about 120 words). Write only the continuation. Story opening:
-\{opening\}''. \textbf{Decoding}: greedy and top-$k$=40 ($T$=1, top-$p$=1, repetition penalty 1.0,
-set explicitly to override the checkpoint's own defaults), 5 seeds, at most 220 subword tokens.
-The output is then re-tokenised with our word tokenizer and cut to 150 tokens, like the RNN and
-LSTM. Perplexity is not compared, because the tokenizers differ.
+\{opening\}''. \textbf{Decoding}: greedy and top-$k$=40 ($T$=1, top-$p$=1, repetition penalty 1.0).
+We set these values explicitly so that the checkpoint's own defaults do not apply. We use 5 seeds
+and at most 220 subword tokens. We then re-tokenise the output with our word tokenizer and cut it
+to 150 tokens, as for the RNN and LSTM. We do not compare perplexity, because the tokenizers differ.
 
-\paragraph{Results.} The LLM is in a different league on prompt connection. It reuses 32--41\% of
-the opening's content words (RNN/LSTM: 0--10\%), only 7\% of its samples are off-prompt, and its
+\paragraph{Results.} The LLM is far better at staying connected to the prompt. It reuses 32--41\%
+of the opening's content words (RNN/LSTM: 0--10\%). Only 7\% of its samples are off-prompt. Its
 Part~4 criteria scores are 0.9--1.0 for connection and 0.7--0.9 for consistency
-(Table~\ref{tab:p4}). It is not a good storyteller either. It tends to explain the twist away (the
-exam student ``was about to take it''), turn it into a moral (``the importance of thorough
-preparation'', Ex.~7 is one of its better outputs), or ignore the paradox (the detective's case has
-``the victim's family'' and a crime scene although the crime has not happened). It also makes
-internal contradictions (``Mr.\ Green'' is the village elder and then turns to ``the village
-elder''; a letter from 100 years ahead arrives ``after centuries''). Its continuations are shorter
-(77 tokens on average; 8\% end within 20 tokens with top-$k$=40), and its greedy output repeats a
-whole sentence verbatim. Its higher Distinct values partly reflect the shorter texts and the
-smaller sample (30 vs.\ 420), so they are not directly comparable. Common failure types: RNN/LSTM
-fail by \emph{forgetting the prompt}; the LLM fails by \emph{under-using} it (a safe, literal
-reading instead of a twist).
+(Table~\ref{tab:p4}). But it is not a good storyteller either. It tends to explain the twist away
+(the exam student ``was about to take it''). It may instead turn the twist into a moral (``the
+importance of thorough preparation''; Ex.~7 is one of its better outputs). Or it ignores the
+paradox (the detective's case has ``the victim's family'' and a crime scene, although the crime has
+not happened). It also contradicts itself. ``Mr.\ Green'' is the village elder and then turns to
+``the village elder''. A letter from 100 years ahead arrives ``after centuries''. Its continuations
+are shorter: 77 tokens on average, and 8\% end within 20 tokens with top-$k$=40. Its greedy output
+repeats a whole sentence word for word. Its higher Distinct values come partly from its
+shorter texts and smaller sample (30 vs.\ 420). So they are not directly comparable. The common failure types differ. The RNN and LSTM fail by \emph{forgetting the prompt}.
+The LLM fails by \emph{under-using} it: it gives a safe, literal reading instead of a twist.
 
 \section{Final analysis (Part 6)}
 \label{sec:analysis}
 \paragraph{Q1. How do the Vanilla RNN and LSTM differ in modelling sequential text?} The LSTM
-models TinyStories markedly better: test perplexity 11.81 vs.\ 15.77 with the same width and
-budget. Three observations point to \emph{longer memory} as the reason, not just more parameters.
-(i)~Its advantage is negligible on the first 8 tokens (0.04 nats) and stable at about 0.31 nats once
-32 or more tokens of context are available (Fig.~\ref{fig:grad}). (ii)~The RNN's gradients spike up
-to $39\times$ the clipping threshold, while the LSTM's stay below 1.62. Gating keeps gradient flow
-stable over long sequences, and the tanh RNN's does not. (iii)~The RNN learns faster at first but
-plateaus earlier (Fig.~\ref{fig:loss}). Caveat: the LSTM has 1.4$\times$ the parameters
-(9.51M vs.\ 6.76M; 4$\times$ the recurrent weights). We did not train a parameter-matched RNN, so
-part of the gap may be capacity. The position-dependent gap is, however, hard to explain by
-capacity alone.
+models TinyStories much better. Its test perplexity is 11.81 vs.\ 15.77, with the same width and
+training budget. Three observations suggest that the reason is \emph{longer memory}, not just more
+parameters. (i)~Its advantage is very small on the first 8 tokens (0.04 nats). It is stable at
+about 0.31 nats once 32 or more tokens of context are available (Fig.~\ref{fig:grad}). (ii)~The
+RNN's gradients spike up to $39\times$ the clipping threshold. The LSTM's gradients stay below
+1.62. Gating keeps the gradient flow stable over long sequences. The tanh RNN's gradient flow is
+not stable. (iii)~The RNN learns faster at first but levels off earlier (Fig.~\ref{fig:loss}).
+One caveat: the LSTM has 1.4$\times$ the parameters (9.51M vs.\ 6.76M; 4$\times$ the recurrent
+weights). We did not train an RNN with a matched number of parameters. So part of the gap may come
+from capacity (model size). However, the gap changes with token position, and capacity alone
+cannot easily explain this.
 
 \paragraph{Q2. Which model generates more coherent and less repetitive continuations?} The LSTM,
-on every automatic signal:
+on every automatic measure:
 \begin{itemize}
 \item fewer greedy loops (40\% vs.\ 60\%; Rep-4 0.28 vs.\ 0.49);
-\item far fewer non-terminating greedy runs on held-out stories (28\% vs.\ 73\%);
+\item far fewer greedy runs that never stop, on held-out stories (28\% vs.\ 73\%);
 \item better-calibrated lengths;
-\item fewer stock-character jumps (33\% vs.\ 71\%) and fewer off-prompt samples (50\% vs.\ 68\%).
+\item fewer jumps to stock characters (33\% vs.\ 71\%) and fewer off-prompt samples (50\% vs.\ 68\%).
 \end{itemize}
-In the analyst judgements it scores slightly higher on twist and repetition. The difference in
-\emph{coherence} is one of degree: both produce locally grammatical sentences that do not form a
-plot. The blinded LLM judges see no difference: coherence 1.37 (LSTM) vs.\ 1.40 (RNN) and grammar
-2.67 vs.\ 2.73 (Wilcoxon $p=1.0$ and $0.82$). The rated samples use $T=0.8$ and top-$k$=40, where
-neither model loops (0\% loop rate for both). The LSTM's advantage lies in greedy decoding and in
-ending stories, which the rated set does not cover. So the LSTM is less repetitive, but neither
-model is coherent to a reader.
+In the analyst's judgements, it scores slightly higher on twist and repetition. For
+\emph{coherence}, the difference is only a matter of degree. Both models write sentences that are
+grammatical locally but do not form a plot. The blinded LLM judges see no difference. Coherence is
+1.37 (LSTM) vs.\ 1.40 (RNN), and grammar is 2.67 vs.\ 2.73 (Wilcoxon $p=1.0$ and $0.82$). The
+rated samples use $T=0.8$ and top-$k$=40. With these settings, neither model loops (0\% loop rate
+for both). The LSTM's advantage is in greedy decoding and in ending stories. The rated set does not
+cover these. So the LSTM is less repetitive, but neither model is coherent to a reader.
 
-\paragraph{Q3. How does temperature affect creativity and grammatical quality?} Monotonically,
-in opposite directions. As $T$ rises from 0.5 to 1.2, Distinct-2 rises from 0.33--0.35 to
-0.54--0.62 and Rep-4 falls to zero. Above $T\approx1.0$, grammar degrades visibly (Ex.~5), and the
-share of LSTM samples that jump to a stock character rises from 12\% to 58\%. Low temperatures give
-safe, repetitive, generic text. High temperatures give novelty, but it is random rather than
-creative: a new word is not a new plot development. $T=0.8$ or top-$k$=40 is the best trade-off for
-these models.
+\paragraph{Q3. How does temperature affect creativity and grammatical quality?} It pushes them in
+opposite directions, and monotonically (the trend never reverses). As $T$ rises from 0.5 to 1.2,
+Distinct-2 rises from 0.33--0.35 to 0.54--0.62. Rep-4 falls to zero. Above $T\approx1.0$, grammar
+gets visibly worse (Ex.~5) and the share of LSTM samples that jump to a stock character rises from
+12\% to 58\%. Low temperatures give safe, repetitive, generic text. High temperatures give novelty,
+but it is random rather than creative. A new word is not a new plot development. $T=0.8$ or
+top-$k$=40 gives the best balance for these models.
 
-\paragraph{Q4. Can higher diversity scores guarantee better stories?} No. The configurations with
-the highest Distinct-2 among the trained models (top-$k$+penalty, 0.70; greedy+penalty for the RNN,
-0.68; $T=1.2$) are among the least coherent: 70--100\% off-prompt for the RNN, frequent character
-churn, broken grammar at $T=1.2$. The RNN even has higher per-sample Distinct than the LSTM while
-being worse on every other signal. Diversity is \emph{necessary} to avoid loops (greedy is both the
-least diverse and the most broken), but it is not sufficient. Distinct-$n$ rewards novelty
-regardless of whether it makes sense, and it is length-sensitive.
-The blinded ratings confirm this: Distinct-2 has no relation to the judges' creativity
-($\rho=-0.18$, $p=0.39$) or coherence ($\rho=0.13$, $p=0.53$) scores, while prompt overlap does
+\paragraph{Q4. Can higher diversity scores guarantee better stories?} No. Among the trained models,
+the settings with the highest Distinct-2 are top-$k$+penalty (0.70), greedy+penalty for the RNN
+(0.68) and $T=1.2$. These are among the least coherent. For the RNN, 70--100\% of their samples are
+off-prompt. Characters keep changing, and grammar breaks at $T=1.2$. The RNN even has a higher
+per-sample Distinct than the LSTM, although it is worse on every other measure. Diversity is
+\emph{necessary} to avoid loops: greedy is both the least diverse and the most broken. But
+diversity is not enough on its own. Distinct-$n$ rewards novelty whether or not it makes sense. It
+is also sensitive to length.
+The blinded ratings confirm this. Distinct-2 has no relation to the judges' scores for creativity
+($\rho=-0.18$, $p=0.39$) or coherence ($\rho=0.13$, $p=0.53$). Prompt overlap does relate to them
 (creativity $\rho=0.51$, relevance $\rho=0.69$; Table~\ref{tab:corr}).
 
-\paragraph{Q5. Does lower perplexity correspond to better storytelling?} Only partly. The lower
-perplexity of the LSTM shows up as better \emph{local} behaviour: fewer loops, better length
-calibration and fewer character switches. It does not show up as better \emph{storytelling}. Both
-models ignore the premise of the opening, produce stock rather than meaningful twists, and generate
-near-identical text for different prompts under the same seed. Perplexity measures how well a model
-predicts typical TinyStories text one token at a time. Our prompts are deliberately atypical
-(detectives, exams, time travel) and partly out of vocabulary. Writing a good continuation needs
-conditioning on that prompt, world knowledge and plot planning, none of which next-token
-perplexity rewards. The blinded ratings agree. The LSTM's 25\% lower perplexity brings no
-measurable gain with the judges: LSTM minus RNN is $-0.03$ (coherence), $-0.07$ (grammar), $+0.07$
-(relevance) and $+0.13$ (creativity) on the 1--5 scale, none significant ($p\geq0.25$), and both
-models stay below 3 on every criterion. Perplexity cannot be compared with the LLM, but the LLM,
-whose text is far more fluent and on-topic, is rated much higher (coherence 3.87), and still only
-2.40 on creativity. These are LLM-judge ratings, not human ones (Section~\ref{sec:eval}).
+\paragraph{Q5. Does lower perplexity correspond to better storytelling?} Only partly. The LSTM's
+lower perplexity shows up as better \emph{local} behaviour: fewer loops, better length calibration
+and fewer character switches. It does not show up as better \emph{storytelling}. Both models
+ignore the premise of the opening. They produce stock twists, not meaningful ones. With the same
+seed, they generate almost the same text for different prompts. Perplexity measures how well a
+model predicts typical TinyStories text one token at a time. Our prompts are unusual on purpose
+(detectives, exams, time travel), and some of their words are out of vocabulary. A good
+continuation must be conditioned on that prompt. It also needs world knowledge and plot planning.
+Next-token perplexity rewards none of these. The blinded ratings agree. The LSTM's 25\% lower
+perplexity brings no measurable gain with the judges. On the 1--5 scale, LSTM minus RNN is $-0.03$
+(coherence), $-0.07$ (grammar), $+0.07$ (relevance) and $+0.13$ (creativity). None is significant
+($p\geq0.25$). Both models stay below 3 on every criterion. We cannot
+compare perplexity with the LLM. But the LLM's text is far more fluent and on-topic, and it is
+rated much higher (coherence 3.87). Even so, it gets only 2.40 on creativity. These are LLM-judge
+ratings, not human ones (Section~\ref{sec:eval}).
 
-\paragraph{Q6. Most frequent failures and how to reduce them.} In order of frequency
+\paragraph{Q6. Most frequent failures and how to reduce them.} From most to least frequent
 (Tables~\ref{tab:fail}, \ref{tab:p4}):
 \begin{enumerate}
 \item \emph{Prompt forgetting / off-prompt drift} (50--68\% of samples; 62--78\% on the Part~4
-  openings) $\rightarrow$ subword tokenisation so that prompt words are never \texttt{<unk>}; more
-  and more varied training data; an attention mechanism (or Transformer) so that the prompt stays
-  accessible; prompts closer to the training domain.
-\item \emph{Reversion to stock characters and plots} (33--71\%) $\rightarrow$ a larger and more
+  openings) $\rightarrow$ subword tokenisation, so that prompt words are never \texttt{<unk>}; more
+  training data, with more variety; an attention mechanism (or Transformer), so that the model can
+  still look back at the prompt; prompts closer to the training domain.
+\item \emph{Falling back to stock characters and plots} (33--71\%) $\rightarrow$ a larger and more
   varied corpus; moderate temperatures ($T\leq0.8$) for the LSTM.
-\item \emph{Entity inconsistency} (gender, names; most Part~4 samples) $\rightarrow$ longer-memory
-  architectures; entity-aware decoding or constraints.
-\item \emph{Repetition loops and non-termination with greedy decoding} (40--73\%) $\rightarrow$
-  sampling, top-$k$/top-$p$, a repetition penalty or $n$-gram blocking (all eliminate loops in our
-  runs). The penalty must be mild because it also causes character churn.
+\item \emph{Inconsistent entities} (gender, names; most Part~4 samples) $\rightarrow$ architectures
+  with longer memory; decoding that keeps track of entities, or constraints.
+\item \emph{Repetition loops and stories that never stop, with greedy decoding} (40--73\%)
+  $\rightarrow$ sampling, top-$k$/top-$p$, a repetition penalty or $n$-gram blocking. All of these
+  remove the loops in our runs. The penalty must be mild, because it also makes characters keep
+  changing.
 \item \emph{Ungrammatical output at high temperature} $\rightarrow$ top-$k$/top-$p$ truncation and
   $T\approx0.8$.
 \end{enumerate}
 
 \paragraph{Q7. Limitations of a small LM trained on a limited corpus.} (i)~\emph{Data}: 20k stories
-(4.2M tokens) of deliberately simple children's English. The vocabulary of 7,590 words lacks basic
-words of the twist prompts, and the stories teach a narrow set of plots and characters, which
-the models fall back on. (ii)~\emph{Architecture}: a fixed-size recurrent state must compress the
-whole prompt; without attention the opening is largely washed out after a few sentences
-(Table~\ref{tab:sens}). (iii)~\emph{Training}: one seed per model and a 15-epoch budget at which
-neither model had converged. (iv)~\emph{Evaluation}: automatic metrics capture repetition and
-diversity but not plot. Our Part~4 judgements come from one analyst, and the blinded ratings come
-from LLM judges rather than people. The rated set is small (25 samples) and cannot fully hide the
-LLM's fluency even under identical formatting. Perplexity
-cannot be compared with the LLM because the tokenisers differ. Even so, the qualitative picture
-(fluent sentences, no story) was consistent across every prompt, seed and configuration we
-inspected.
+(4.2M tokens) of children's English that is simple on purpose. The vocabulary of 7,590 words is
+missing basic words from the twist prompts. The stories also teach a narrow set of plots and
+characters, and the models fall back on them. (ii)~\emph{Architecture}: a fixed-size recurrent
+state must hold a compressed form of the whole prompt. Without attention, most of the opening is
+lost after a few sentences (Table~\ref{tab:sens}). (iii)~\emph{Training}: we used one seed per
+model and a 15-epoch budget. Neither model had converged by then. (iv)~\emph{Evaluation}:
+automatic metrics measure repetition and diversity but not plot. Our Part~4 judgements come from
+one analyst. The blinded ratings come from LLM judges, not from people. The rated set is small
+(25 samples). Even with identical formatting, it cannot fully hide the LLM's fluency. We cannot
+compare perplexity with the LLM because the tokenisers differ. Even so, the qualitative picture
+(fluent sentences, no story) was the same for every prompt, seed and configuration we looked at.
 
 \section{Reproducibility}
 All hyper-parameters are in \texttt{configs/default.yaml}. Seeds: 42 (split, initialisation,
-batching) and 0--4 (generation). The resolved configuration, command-line arguments and hardware
-of every run are saved in \texttt{outputs/configs\_used/}. A timestamped log is in
+batching) and 0--4 (generation). For every run, we save the resolved configuration, command-line
+arguments and hardware in \texttt{outputs/configs\_used/}. A log with timestamps is in
 \texttt{outputs/run\_log.txt}. The command \texttt{python -m ptg.cli all} reproduces every number
-and figure. cuDNN RNN kernels are not bit-for-bit deterministic, so retraining may change the last
+and figure. cuDNN RNN kernels are not bit-for-bit deterministic. So retraining may change the last
 decimals. The submitted checkpoints reproduce the reported numbers.
-
 \appendix
 \section{Next-token training pairs}\label{app:pairs}
 \begin{small}
