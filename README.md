@@ -12,7 +12,7 @@ technical report.
 
 ```
 configs/default.yaml   every hyper-parameter, seed and decoding setting
-src/ptg/               data.py tokenizer.py dataset.py models.py train.py generate.py
+src/ptg/               data.py tokenizer.py dataset.py models.py train.py generate.py demo.py
                        metrics.py prompts.py human_eval.py llm_baseline.py figures.py cli.py
 notebooks/             results walkthrough notebook (executed, with outputs)
 data/splits.json       HF row indices of the train/val/test stories (the dataset itself is NOT included)
@@ -70,6 +70,19 @@ or stage by stage:
 Any config value can be overridden from the command line, e.g. a quick smoke test:
 `.venv/bin/python -m ptg.cli all --set output_dir=/tmp/smoke data.n_train=1000 data.n_val=100 data.n_test=100 data.pool_size=3000 train.epochs=2`.
 Use a separate `data.cache_dir`/`data.splits_file` too so the real split is not overwritten.
+
+## Try the trained models
+
+```bash
+export PYTHONPATH=src
+.venv/bin/python -m ptg.demo "One day, a little girl found a door in a tree."
+.venv/bin/python -m ptg.demo "The detective solved the murder before the crime had even happened." --model lstm --decoding temp_0.8 --seed 3
+```
+
+Prints the RNN and LSTM continuations (or one model with `--model`). `--decoding` takes any config
+name from `generation.configs` (default `topk_40`), and the same opening, config and seed reproduce
+the saved generations. Words outside the vocabulary are listed. Nothing is written to `outputs/`.
+The last cell of the notebook does the same with `plot_twist(...)`.
 
 ## Final assembly
 
