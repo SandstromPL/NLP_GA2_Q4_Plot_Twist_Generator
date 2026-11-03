@@ -97,6 +97,9 @@ Runs `human-analyze` (only if rating files exist), rebuilds figures and tables, 
 
 ## Human evaluation procedure
 
+The submitted ratings come from three LLM judges used as a proxy, not from people (see
+`outputs/human_eval/README.md`). To run the study with human evaluators:
+
 1. `human-sheet` writes `outputs/human_eval/sheet.html` (what evaluators read), `sheet.csv`, and
    `ratings/TEMPLATE.csv`. The sample → system key is in `key_DO_NOT_SHARE.csv`; never send it.
 2. Each evaluator rates every sample 1-5 for coherence, grammar, relevance and creativity, on

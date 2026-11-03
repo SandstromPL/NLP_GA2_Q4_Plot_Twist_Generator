@@ -88,3 +88,11 @@ lstm   greedy    100         295.0           196.0          215.1            176
 [2026-10-30 14:23:26] figures + LaTeX tables written (and copied to report/)
 [2026-11-02 03:13:31] === stage: report-assets ===
 [2026-11-02 03:13:32] figures + LaTeX tables written (and copied to report/)
+[2026-11-03 23:10:24] === stage: human-analyze ===
+[2026-11-03 23:10:25] human eval overall means: {'llm': 3.766666666666667, 'lstm': 1.5833333333333335, 'rnn': 1.5583333333333331}
+[2026-11-03 23:10:25] agreement: [{'criterion': 'coherence', 'krippendorff_alpha_ordinal': 0.7274485596707819, 'mean_within_sample_sd': 0.27712812921102037}, {'criterion': 'grammar', 'krippendorff_alpha_ordinal': 0.6966350343556226, 'mean_within_sample_sd': 0.4095041722813605}, {'criterion': 'relevance', 'krippendorff_alpha_ordinal': 0.7593462428240939, 'mean_within_sample_sd': 0.22475208614068024}, {'criterion': 'creativity', 'krippendorff_alpha_ordinal': 0.6631224911337152, 'mean_within_sample_sd': 0.18475208614068023}]
+[2026-11-03 23:11:52] === stage: human-analyze ===
+[2026-11-03 23:11:53] human eval overall means: {'llm': 3.766666666666667, 'lstm': 1.5833333333333335, 'rnn': 1.5583333333333331}
+[2026-11-03 23:11:53] agreement: [{'criterion': 'coherence', 'krippendorff_alpha_ordinal': 0.7274485596707819, 'mean_within_sample_sd': 0.27712812921102037}, {'criterion': 'grammar', 'krippendorff_alpha_ordinal': 0.6966350343556226, 'mean_within_sample_sd': 0.4095041722813605}, {'criterion': 'relevance', 'krippendorff_alpha_ordinal': 0.7593462428240939, 'mean_within_sample_sd': 0.22475208614068024}, {'criterion': 'creativity', 'krippendorff_alpha_ordinal': 0.6631224911337152, 'mean_within_sample_sd': 0.18475208614068023}]
+[2026-11-03 23:11:54] === stage: report-assets ===
+[2026-11-03 23:11:56] figures + LaTeX tables written (and copied to report/)

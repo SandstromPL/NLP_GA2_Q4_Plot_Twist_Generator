@@ -37,13 +37,15 @@
 We train a Vanilla RNN and an LSTM word-level language model from scratch on 20,000 TinyStories
 and use them to continue story openings under ten decoding configurations (greedy, temperature,
 top-$k$, top-$p$ and a repetition penalty). We evaluate perplexity, diversity (Distinct-1/2),
-repetition and length failures, and run a blinded human evaluation of plot-twist continuations.
+repetition and length failures, and run a blinded rating study of plot-twist continuations, with
+three LLM judges standing in for human evaluators because a human study was not feasible in time.
 A zero-shot Qwen2.5-0.5B-Instruct serves as an optional reference. The LSTM is clearly the better language model (test perplexity 11.81 vs.\ 15.77). It is
 also the more stable generator, with fewer repetition loops and better-calibrated story lengths.
 Yet neither model tells the story it is asked to tell. Continuations reuse none of the opening's
 content words in 50--68\% of samples. Out-of-vocabulary words erase key premises. With a fixed
-random seed, two different openings often yield nearly the same continuation. Lower perplexity
-bought fluency, not storytelling.
+random seed, two different openings often yield nearly the same continuation. Three blinded LLM
+judges, used in place of human raters, score both models equally low (coherence 1.4 of 5) and see no
+LSTM advantage. Lower perplexity bought fluency, not storytelling.
 \end{abstract}
 
 \section{Introduction}
@@ -235,7 +237,7 @@ two prompts is in Appendix~\ref{app:p3}, and all 840 continuations are in
   0.005) with diversity between $T=0.5$ and $T=0.8$. $k=40$ matches the diversity of $T=0.8$--$1.0$.
   Top-$k$ cuts the low-probability tail, which is where the rare-word errors that make $T\geq1.0$ ungrammatical come from.
   Qualitatively, top-$k$=40 and $T=0.8$ give the most readable continuations, and we use these two
-  for the human evaluation.
+  for the blinded rating study.
 \item \textbf{The repetition penalty removes loops but not incoherence.} The penalty (1.2) brings
   greedy Rep-4 to 0.00 (RNN) and 0.003 (LSTM) and gives the highest Distinct-2 of all RNN/LSTM
   configurations (up to 0.70). However, it also penalises useful repetition (names, pronouns), so
@@ -305,7 +307,7 @@ detective prompt reaches the models as ``the \texttt{<unk>} solved the \texttt{<
 greedy, $T=0.8$, top-$k$=40) and the 10 Qwen continuations on the four criteria of the brief
 (Yes = 1, Partial = 0.5, No = 0). Every judgement, with a one-line justification, is in
 \texttt{outputs/analysis/part4\_criteria.csv}. These are the analyst's judgements; the blinded
-ratings of Section~\ref{sec:eval} are the independent check. Over all 60 judgements per model,
+LLM-judge ratings of Section~\ref{sec:eval} are a second, independent check. Over all 60 judgements per model,
 the RNN received 0 Yes / 18 Partial / 42 No and the LSTM 0 / 22 / 38.
 
 \begin{table}[H]\centering
@@ -385,30 +387,67 @@ The RNN's \emph{higher} per-sample Distinct values are partly a length effect: i
 shorter (104 vs.\ 130 tokens), and Distinct-$n$ falls as texts get longer. At a matched
 configuration and $T\geq1.0$, the LSTM's pooled Distinct-2 is higher (0.60--0.62 vs.\ 0.53--0.54).
 
-\subsection{Blinded human evaluation}
+\subsection{Blinded evaluation (LLM judges as a proxy for human raters)}
 \paragraph{Design.} The sample set was fixed in the configuration file before any output was read:
 every Plot-Twist opening $\times$ \{Vanilla RNN, LSTM, Qwen\} $\times$ \{temperature 0.8,
 top-$k$=40\}, seed 0, i.e.\ 25 samples (the LLM contributes top-$k$=40 only). To prevent the surface
 form from revealing the system, every system's output passes through the same word tokenizer,
 lowercasing, detokeniser and 150-token cap. Samples were shuffled (seed 2026), given anonymous IDs,
-and shown with the opening on an HTML sheet. The key was kept in a separate file. Each evaluator
+and shown with the opening on an HTML sheet. The key was kept in a separate file. Each rater
 independently rated every sample from 1 to 5 for coherence, grammatical quality, relevance to the
 opening, and creativity/surprise. Agreement is measured with Krippendorff's $\alpha$ (ordinal).
 LSTM and RNN are compared with a paired Wilcoxon signed-rank test over the 10 (opening, config)
-pairs, using the mean over evaluators.
+pairs, using the mean over raters.
 
-\paragraph{Results.} \pending{Run \texttt{python -m ptg.cli human-analyze} after the rating files are
-in \texttt{outputs/human\_eval/ratings/}, then report: number of evaluators; Table
-\texttt{tables/human\_eval.tex} (mean $\pm$ sd per system and criterion);
-\texttt{tables/human\_agreement.tex} (Krippendorff's $\alpha$); the most-disputed samples
-(\texttt{results\_disagreements.csv}); the LSTM-vs-RNN Wilcoxon test
-(\texttt{results\_lstm\_vs\_rnn.csv}); and the Spearman correlations between automatic metrics and
-human scores (\texttt{results\_metric\_vs\_human.csv}).}
+\paragraph{Raters: LLM judges, not people.} The brief asks for at least three human evaluators
+``wherever feasible''. A human study was not feasible before our deadline, so the ratings come from
+three LLM judges: Claude Haiku~5.5, Claude Sonnet~5.5 and Claude Opus~5.5 (Anthropic), each run as a
+separate agent. Each judge received only the blinded sheet (\texttt{sheet.csv}: ID, opening,
+continuation) and the instructions written for human raters, was told not to open any other project
+file, and wrote one CSV (\texttt{outputs/human\_eval/ratings/llm\_judge\_*.csv}, kept unedited).
+\textbf{These scores are a proxy for human judgement, not a substitute}, with three caveats:
+(i)~LLM judges tend to favour fluent, well-formed text, which helps the LLM baseline;
+(ii)~the three judges come from one model family and may share biases, so their agreement is likely
+higher than that of independent people; (iii)~they have not been validated against human ratings on
+this data. The sheet and template are ready for a human study (\texttt{outputs/human\_eval/README.md}).
 
-% \begin{table}[H]\centering\caption{Blinded human ratings (1--5, mean $\pm$ sd over all ratings).}\label{tab:human}
-% \input{tables/human_eval.tex}\end{table}
-% \begin{table}[H]\centering\caption{Inter-rater agreement.}\label{tab:agree}
-% \input{tables/human_agreement.tex}\end{table}
+\paragraph{Results.} The three judges rated all 25 samples (300 ratings; Table~\ref{tab:human},
+Fig.~\ref{fig:human}).
+\begin{itemize}
+\item \textbf{RNN and LSTM are rated the same, near the floor.} Coherence 1.40 vs.\ 1.37, relevance
+  1.10 vs.\ 1.17, creativity 1.00 vs.\ 1.13 (RNN vs.\ LSTM). Grammar is rated higher (about 2.7) but
+  is still poor. No LSTM--RNN difference is significant (paired Wilcoxon over the 10
+  opening$\times$config pairs, $p\geq0.25$ for every criterion; Table~\ref{tab:lstmrnn}).
+\item \textbf{The LLM is rated far higher} on grammar (4.67), relevance (4.13) and coherence (3.87),
+  but only 2.40 on creativity. The judges' comments repeat our own observation: it stays on topic
+  but turns the twist into a moral or drops the paradox (S21, S22).
+\item \textbf{Agreement} is substantial (Krippendorff's $\alpha$ 0.66--0.76; Table~\ref{tab:agree}),
+  but it is inflated by the large gap between the LLM and the trained models and by a floor effect
+  (RNN creativity is 1 in all 30 ratings), which leaves little room to disagree. No sample's
+  ratings differ by more than 2 points. The two most disputed are S05 (Qwen, village opening;
+  relevance 2--4: the village is kept but the memory loss is ignored) and S04 (RNN, detective
+  opening; grammar 3--5: two clean sentences unrelated to the opening).
+\item \textbf{Automatic metrics vs.\ ratings} (Spearman over the 25 samples; Table~\ref{tab:corr}).
+  Prompt overlap tracks relevance ($\rho=0.69$, $p<0.001$) and creativity ($\rho=0.51$, $p=0.01$),
+  which supports it as a relevance proxy. Distinct-2 is unrelated to every criterion
+  ($|\rho|\leq0.18$, $p\geq0.39$). Longer continuations are rated less coherent and less grammatical
+  ($\rho=-0.58$, $p=0.002$), largely because the LLM writes shorter and better text: length and
+  system are confounded.
+\end{itemize}
+
+\begin{table}[H]\centering\caption{Blinded ratings by three LLM judges (1--5, mean $\pm$ sd over all
+ratings; 15 ratings for Qwen, 30 for each trained model).}\label{tab:human}
+\input{tables/human_eval.tex}\end{table}
+\begin{table}[H]\centering\caption{Agreement between the three LLM judges.}\label{tab:agree}
+\input{tables/human_agreement.tex}\end{table}
+\begin{table}[H]\centering\caption{LSTM vs.\ Vanilla RNN: mean judge rating over the 10
+(opening, config) pairs and paired Wilcoxon signed-rank test.}\label{tab:lstmrnn}
+\input{tables/human_lstm_vs_rnn.tex}\end{table}
+\begin{table}[H]\centering\caption{Spearman $\rho$ between automatic metrics and the mean judge
+rating of each sample (25 samples).}\label{tab:corr}
+\input{tables/human_metric_corr.tex}\end{table}
+\begin{figure}[H]\centering\includegraphics[width=0.75\linewidth]{human_eval.png}
+\caption{Blinded LLM-judge ratings per system (mean $\pm$ sd).}\label{fig:human}\end{figure}
 
 \section{Optional extension: a zero-shot open-source LLM}
 \label{sec:llm}
@@ -461,7 +500,11 @@ on every automatic signal:
 \end{itemize}
 In the analyst judgements it scores slightly higher on twist and repetition. The difference in
 \emph{coherence} is one of degree: both produce locally grammatical sentences that do not form a
-plot. \pending{add the human coherence and grammar means and the Wilcoxon $p$-value.}
+plot. The blinded LLM judges see no difference: coherence 1.37 (LSTM) vs.\ 1.40 (RNN) and grammar
+2.67 vs.\ 2.73 (Wilcoxon $p=1.0$ and $0.82$). The rated samples use $T=0.8$ and top-$k$=40, where
+neither model loops (0\% loop rate for both). The LSTM's advantage lies in greedy decoding and in
+ending stories, which the rated set does not cover. So the LSTM is less repetitive, but neither
+model is coherent to a reader.
 
 \paragraph{Q3. How does temperature affect creativity and grammatical quality?} Monotonically,
 in opposite directions. As $T$ rises from 0.5 to 1.2, Distinct-2 rises from 0.33--0.35 to
@@ -478,8 +521,9 @@ churn, broken grammar at $T=1.2$. The RNN even has higher per-sample Distinct th
 being worse on every other signal. Diversity is \emph{necessary} to avoid loops (greedy is both the
 least diverse and the most broken), but it is not sufficient. Distinct-$n$ rewards novelty
 regardless of whether it makes sense, and it is length-sensitive.
-\pending{add the Spearman correlation between Distinct-2 and the human creativity and coherence
-scores.}
+The blinded ratings confirm this: Distinct-2 has no relation to the judges' creativity
+($\rho=-0.18$, $p=0.39$) or coherence ($\rho=0.13$, $p=0.53$) scores, while prompt overlap does
+(creativity $\rho=0.51$, relevance $\rho=0.69$; Table~\ref{tab:corr}).
 
 \paragraph{Q5. Does lower perplexity correspond to better storytelling?} Only partly. The lower
 perplexity of the LSTM shows up as better \emph{local} behaviour: fewer loops, better length
@@ -489,8 +533,12 @@ near-identical text for different prompts under the same seed. Perplexity measur
 predicts typical TinyStories text one token at a time. Our prompts are deliberately atypical
 (detectives, exams, time travel) and partly out of vocabulary. Writing a good continuation needs
 conditioning on that prompt, world knowledge and plot planning, none of which next-token
-perplexity rewards. \pending{state whether the LSTM is also rated higher by humans, and by how much,
-per criterion.}
+perplexity rewards. The blinded ratings agree. The LSTM's 25\% lower perplexity brings no
+measurable gain with the judges: LSTM minus RNN is $-0.03$ (coherence), $-0.07$ (grammar), $+0.07$
+(relevance) and $+0.13$ (creativity) on the 1--5 scale, none significant ($p\geq0.25$), and both
+models stay below 3 on every criterion. Perplexity cannot be compared with the LLM, but the LLM,
+whose text is far more fluent and on-topic, is rated much higher (coherence 3.87), and still only
+2.40 on creativity. These are LLM-judge ratings, not human ones (Section~\ref{sec:eval}).
 
 \paragraph{Q6. Most frequent failures and how to reduce them.} In order of frequency
 (Tables~\ref{tab:fail}, \ref{tab:p4}):
@@ -517,8 +565,9 @@ the models fall back on. (ii)~\emph{Architecture}: a fixed-size recurrent state 
 whole prompt; without attention the opening is largely washed out after a few sentences
 (Table~\ref{tab:sens}). (iii)~\emph{Training}: one seed per model and a 15-epoch budget at which
 neither model had converged. (iv)~\emph{Evaluation}: automatic metrics capture repetition and
-diversity but not plot. Our Part~4 judgements come from one analyst. The human study is small
-(25 samples) and cannot fully hide the LLM's fluency even under identical formatting. Perplexity
+diversity but not plot. Our Part~4 judgements come from one analyst, and the blinded ratings come
+from LLM judges rather than people. The rated set is small (25 samples) and cannot fully hide the
+LLM's fluency even under identical formatting. Perplexity
 cannot be compared with the LLM because the tokenisers differ. Even so, the qualitative picture
 (fluent sentences, no story) was consistent across every prompt, seed and configuration we
 inspected.

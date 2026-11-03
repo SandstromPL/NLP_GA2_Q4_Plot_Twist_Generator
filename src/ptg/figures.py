@@ -296,7 +296,9 @@ def make_human_figure(cfg, tables):
         ax.bar(x + (i - (len(systems) - 1) / 2) * width, means, width, yerr=sds, capsize=3,
                color=COLORS[s], label=LABELS[s])
     ax.set_xticks(x, [c.capitalize() for c in CRITERIA])
-    ax.set(ylim=(0, 5.5), ylabel="mean rating (1-5)", title="Blinded human ratings (mean ± sd)")
+    evaluators = tables["by_evaluator"].index.get_level_values("evaluator").unique()
+    who = "LLM judges" if all(e.startswith("llm_judge") for e in evaluators) else "evaluators"
+    ax.set(ylim=(0, 5.5), ylabel="mean rating (1-5)", title=f"Blinded ratings, {len(evaluators)} {who} (mean ± sd)")
     ax.legend(fontsize=8)
     ax.grid(axis="y", alpha=0.3)
     _save(fig, cfg, "human_eval.png")

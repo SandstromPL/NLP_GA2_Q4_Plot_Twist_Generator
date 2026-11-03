@@ -129,12 +129,14 @@ the opening asks for. Lower perplexity bought fluency, not storytelling.
 ## 7. Remaining
 
 - [x] Full run finishes; sanity-check numbers and generations
-- [ ] Send `outputs/human_eval/sheet.html` + `ratings/TEMPLATE.csv` to 3 evaluators
+- [x] Blinded ratings (2026-11-03): no human study was feasible before the deadline, so three LLM judges
+  (Claude Haiku/Sonnet/Opus 5.5) rated the blinded sheet as a proxy; labelled as such everywhere
+  (`outputs/human_eval/README.md`, report Section 5.2). Sheet + template still ready for people
 - [x] `finalize.sh` (2026-11-02): one command for analysis → report → notebook → submission folder + zip
 - [x] Final folder `submission/Q4_Plot_Twist_Generator/` + zip built and checked (all deliverables present; no dataset)
-- [ ] Run `./finalize.sh` once ratings return; fill the red `\pending{}` spots in `report/main.tex`
+- [x] `./finalize.sh` run with the judge ratings; all `\pending{}` spots filled (report 25 pages)
 - [x] Results notebook (executed, with outputs)
 - [x] README with setup and reproduce commands
 - [x] LaTeX report answering Part 6 Q1–Q7 (human-rating parts pending)
 - [ ] Team names on the report title page; team review of `outputs/analysis/part4_criteria.csv`
-- [ ] Submission zip: `./make_submission.sh` (after the ratings are in)
+- [x] Submission folder + zip rebuilt (2026-11-03)

@@ -145,6 +145,12 @@ ppl = load_json(OUT / "eval/perplexity.json")
 pd.DataFrame({c: {"val_ppl": ppl[c]["val"]["ppl"], "test_ppl": ppl[c]["test"]["ppl"]} for c in ("rnn", "lstm")}).T.round(2)
 """)
 code("""pd.read_csv(OUT / "tables/system_metrics_all_configs.csv").round(3)""")
+md("""
+**Blinded ratings.** A human study was not feasible before the deadline. The ratings below come from
+three LLM judges (Claude Haiku 5.5, Sonnet 5.5, Opus 5.5) used as a proxy: each saw only the blinded
+sheet and the same instructions written for human evaluators (`ratings/llm_judge_*.csv`). They are
+not human ratings; see the report, Section 5.2.
+""")
 code("""
 hdir = OUT / "human_eval"
 done = [p for p in (hdir / "ratings").glob("*.csv") if p.stem != "TEMPLATE"]
