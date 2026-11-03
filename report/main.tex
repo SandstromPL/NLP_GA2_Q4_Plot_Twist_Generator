@@ -232,7 +232,7 @@ Appendix~\ref{app:p3} has the full grid for two prompts. All 840 continuations a
   wanted to play with the ball.'' until the length limit. Greedy also has the lowest diversity
   (Distinct-2 0.18 / 0.29).
 \item \textbf{Lower temperature $\Rightarrow$ more repetitive, safer text.} Sampling at $T=0.5$
-  already removes most loops (Rep-4 0.03 / 0.05). But it is still the most repetitive and least
+  already removes most loops (Rep-4 0.03 / 0.04). But it is still the most repetitive and least
   diverse sampling setting (Distinct-2 0.35 / 0.33). It gives generic sentences such as
   ``He was so happy''. As $T$ increases, diversity rises and repetition falls at every step (Fig.~\ref{fig:temp}).
 \item \textbf{Higher temperature $\Rightarrow$ more diverse but less coherent text.} At $T=1.2$,
@@ -247,7 +247,7 @@ Appendix~\ref{app:p3} has the full grid for two prompts. All 840 continuations a
   these two for the blinded rating study.
 \item \textbf{The repetition penalty removes loops but not incoherence.} The penalty (1.2) brings
   greedy Rep-4 down to 0.00 (RNN) and 0.003 (LSTM). It also gives the highest Distinct-2 of all
-  RNN/LSTM configurations (up to 0.70). However, it also penalises useful repetition, such as names
+  RNN/LSTM configurations (up to 0.69). However, it also penalises useful repetition, such as names
   and pronouns. So the story jumps between characters (Ex.~6: Timmy, then Tim, then Lily within a
   few sentences). 80\% of RNN greedy+penalty samples introduce a stock character.
 \end{itemize}
@@ -344,10 +344,10 @@ check. Over all 60 judgements per model, the RNN got 0 Yes / 18 Partial / 42 No.
 
 \paragraph{The seed matters more than the prompt.} With the same seed and configuration, the RNN
 gave the same 75-token continuation, word for word, for the detective and the village prompts
-(Ex.~2 and~3). Table~\ref{tab:sens} shows that this is a general pattern. Take any sampling
-configuration. Two continuations of \emph{different} prompts with the \emph{same} seed share more
-4-grams than two continuations of the \emph{same} prompt with \emph{different} seeds. The gap is a
-factor of 2--10. Up to 4--7\% of cross-prompt pairs start with the same 10 tokens. For cross-seed
+(Ex.~2 and~3). Table~\ref{tab:sens} shows that this is a general pattern. In every sampling
+configuration except the LSTM at $T=0.5$, two continuations of \emph{different} prompts with the
+\emph{same} seed share more 4-grams than two continuations of the \emph{same} prompt with
+\emph{different} seeds, usually several times more. Up to 4--7\% of cross-prompt pairs start with the same 10 tokens. For cross-seed
 pairs, this is 0\%. The recurrent state keeps so little of the opening that the random draw
 decides the story.
 
@@ -530,7 +530,7 @@ but it is random rather than creative. A new word is not a new plot development.
 top-$k$=40 gives the best balance for these models.
 
 \paragraph{Q4. Can higher diversity scores guarantee better stories?} No. Among the trained models,
-the settings with the highest Distinct-2 are top-$k$+penalty (0.70), greedy+penalty for the RNN
+the settings with the highest Distinct-2 are top-$k$+penalty (0.69), greedy+penalty for the RNN
 (0.68) and $T=1.2$. These are among the least coherent. For the RNN, 70--100\% of their samples are
 off-prompt. Characters keep changing, and grammar breaks at $T=1.2$. The RNN even has a higher
 per-sample Distinct than the LSTM, although it is worse on every other measure. Diversity is
