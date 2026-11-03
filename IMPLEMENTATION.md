@@ -138,5 +138,6 @@ the opening asks for. Lower perplexity bought fluency, not storytelling.
 - [x] Results notebook (executed, with outputs)
 - [x] README with setup and reproduce commands
 - [x] LaTeX report answering Part 6 Q1–Q7 (human-rating parts pending)
-- [ ] Team names on the report title page; team review of `outputs/analysis/part4_criteria.csv`
+- [x] Author on the title page: Paritosh Lahre (12341550); Q4 is a solo part of the group assignment
+- [ ] Review of `outputs/analysis/part4_criteria.csv` (analyst draft)
 - [x] Submission folder + zip rebuilt (2026-11-03)
