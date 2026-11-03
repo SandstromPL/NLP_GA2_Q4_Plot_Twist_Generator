@@ -62,7 +62,7 @@ next to successful ones. The submission includes code, configuration, checkpoint
 \section{Data preparation and next-token prediction (Part 1)}
 \label{sec:data}
 \paragraph{Corpus and subset.} We stream the first 40,000 stories of the TinyStories
-\texttt{train} split (\texttt{roneneldan/TinyStories}) in their published order. We clean them,
+\texttt{train} split (\texttt{roneneldan/\allowbreak TinyStories}) in their published order. We clean them,
 drop stories shorter than 20 words, and remove exact duplicates (ignoring case and whitespace).
 We shuffle the unique stories with seed 42. Then we split them \emph{at the story level} into 20,000
 training, 1,000 validation and 1,000 test stories. Only after this do we build training sequences. So no
